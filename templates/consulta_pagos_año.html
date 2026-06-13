@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Pagos del Año{% endblock %}
+{% block content %}
+
+<h4 class="fw-bold mb-4">Consulta Pagos por Año</h4>
+
+<!-- Selector año -->
+<div class="card p-3 mb-3">
+  <form class="row g-2 align-items-end" method="get">
+    <div class="col-md-2">
+      <label class="form-label fw-semibold mb-1">Año</label>
+      <select class="form-select form-select-sm" name="año">
+        {% for a in años %}
+        <option {% if año==a %}selected{% endif %}>{{ a }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-auto">
+      <button class="btn btn-sm btn-primary">Ver</button>
+    </div>
+  </form>
+</div>
+
+<!-- Gran total -->
+{% if filas %}
+<div class="card p-2 mb-3 bg-light border-0">
+  <div class="row text-center">
+    <div class="col">
+      <div class="fw-bold text-primary fs-5">{{ gran_total_uf|cl_uf(1) }} UF</div>
+      <div class="text-muted small">Total UF año {{ año }}</div>
+    </div>
+    <div class="col">
+      <div class="fw-bold text-success fs-5">{{ gran_total_pesos|cl_pesos }}</div>
+      <div class="text-muted small">Total pesos año {{ año }}</div>
+    </div>
+    <div class="col">
+      <div class="fw-bold fs-5">{{ filas|length }}</div>
+      <div class="text-muted small">Meses con pagos</div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>Mes</th>
+          <th class="text-end">Pagos</th>
+          <th class="text-end">Total UF</th>
+          <th class="text-end">Total pesos</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in filas %}
+        <tr>
+          <td class="fw-semibold">{{ meses[f.mes] }}</td>
+          <td class="text-end">{{ f.cantidad }}</td>
+          <td class="text-end">{{ f.total_uf|cl_uf(1) }}</td>
+          <td class="text-end">{{ f.total_pesos|cl_pesos }}</td>
+          <td>
+            <a href="/consultas/pagos-mes?mes={{ f.mes }}&año={{ año }}"
+               class="btn btn-sm btn-outline-secondary py-0" title="Ver detalle del mes">
+              <i class="bi bi-zoom-in"></i>
+            </a>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="text-center text-muted py-4">Sin pagos registrados para el año {{ año }}</td></tr>
+        {% endfor %}
+      </tbody>
+      {% if filas %}
+      <tfoot class="table-light fw-bold">
+        <tr>
+          <td>Total</td>
+          <td class="text-end">{{ filas|sum(attribute='cantidad') }}</td>
+          <td class="text-end">{{ gran_total_uf|cl_uf(1) }}</td>
+          <td class="text-end">{{ gran_total_pesos|cl_pesos }}</td>
+          <td></td>
+        </tr>
+      </tfoot>
+      {% endif %}
+    </table>
+  </div>
+</div>
+{% endblock %}

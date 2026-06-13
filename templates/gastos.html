@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}Gastos Comunes{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="fw-bold mb-0">Gastos Comunes</h4>
+  <div class="d-flex gap-2">
+    <a href="/gastos/items" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-gear me-1"></i>Ítems
+    </a>
+    <a href="/gastos/prorrateo" class="btn btn-outline-primary btn-sm">
+      <i class="bi bi-pie-chart me-1"></i>Prorrateo
+    </a>
+    <a href="/gastos/nuevo" class="btn btn-primary btn-sm">
+      <i class="bi bi-plus-lg me-1"></i>Registrar gasto
+    </a>
+  </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+    <div class="alert alert-{{ cat }} alert-dismissible fade show">{{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+  {% endfor %}
+{% endwith %}
+
+<!-- Filtros -->
+<div class="card p-3 mb-3">
+  <form class="row g-2 align-items-end" method="get">
+    <div class="col-md-2">
+      <label class="form-label fw-semibold mb-1 small">Mes</label>
+      <select class="form-select form-select-sm" name="mes">
+        <option value="">Todos</option>
+        {% for n, nombre in meses.items() %}
+        <option value="{{ n }}" {% if mes==n|string %}selected{% endif %}>{{ nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label fw-semibold mb-1 small">Año</label>
+      <select class="form-select form-select-sm" name="año">
+        {% for a in años %}
+        <option {% if año==a|string %}selected{% endif %}>{{ a }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-auto">
+      <button class="btn btn-sm btn-primary">Filtrar</button>
+      <a class="btn btn-sm btn-outline-secondary" href="/gastos">Limpiar</a>
+    </div>
+  </form>
+</div>
+
+{% if meses_con_datos %}
+<!-- Tabla pivote -->
+<div class="card mb-3">
+  <div class="card-header fw-bold py-2">Resumen por ítem y mes — {{ año }}</div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>Ítem</th>
+          {% for m in meses_con_datos %}
+          <th class="text-end">{{ meses[m] }}</th>
+          {% endfor %}
+          <th class="text-end">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item, mapa in pivote.items() %}
+        <tr>
+          <td class="fw-semibold">{{ item }}</td>
+          {% for m in meses_con_datos %}
+            {% if m in mapa %}
+            <td class="text-end">{{ mapa[m].monto|cl_pesos }}</td>
+            {% else %}
+            <td class="text-end text-muted">—</td>
+            {% endif %}
+          {% endfor %}
+          {% set t = namespace(v=0) %}
+          {% for m, g in mapa.items() %}{% if g.monto %}{% set t.v = t.v + g.monto %}{% endif %}{% endfor %}
+          <td class="text-end fw-semibold">{{ t.v|cl_pesos }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot class="table-light fw-bold">
+        <tr>
+          <td>Total</td>
+          {% for m in meses_con_datos %}
+            {% set tm = namespace(v=0) %}
+            {% for item, mapa in pivote.items() %}{% if m in mapa and mapa[m].monto %}{% set tm.v = tm.v + mapa[m].monto %}{% endif %}{% endfor %}
+            <td class="text-end">{{ tm.v|cl_pesos }}</td>
+          {% endfor %}
+          <td class="text-end">{{ total|cl_pesos }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- Detalle -->
+<div class="card">
+  <div class="card-header py-2 d-flex justify-content-between align-items-center">
+    <span class="fw-bold">Detalle</span>
+    {% if total %}<span class="text-muted small">Total: <strong>{{ total|cl_pesos }}</strong></span>{% endif %}
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>Ítem</th><th>Mes</th><th>Año</th>
+          <th class="text-end">Monto</th><th>Fecha pago</th>
+          <th>Factura</th><th>Descripción</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for g in gastos %}
+        <tr>
+          <td class="fw-semibold">{{ g.nombre_item }}</td>
+          <td>{{ meses[g.mes] if g.mes else "—" }}</td>
+          <td>{{ g.año or "—" }}</td>
+          <td class="text-end">{{ g.monto|cl_pesos }}</td>
+          <td>{{ g.fecha_pago|cl_fecha }}</td>
+          <td>{{ g.factura or "—" }}</td>
+          <td class="text-muted small">{{ g.descripcion or "" }}</td>
+          <td>
+            <a href="/gastos/{{ g.id_gasto }}/editar"
+               class="btn btn-sm btn-outline-secondary py-0">
+              <i class="bi bi-pencil"></i>
+            </a>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" class="text-center text-muted py-4">Sin gastos registrados</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

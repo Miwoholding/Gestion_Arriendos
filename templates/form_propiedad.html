@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+{% block title %}{{ "Editar" if propiedad else "Nueva" }} Propiedad{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center gap-2 mb-4">
+  <a href="/propiedades" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
+  <h4 class="fw-bold mb-0">{{ "Editar" if propiedad else "Nueva" }} Propiedad</h4>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+    <div class="alert alert-{{ cat }} alert-dismissible fade show">{{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+  {% endfor %}
+{% endwith %}
+
+<div class="card p-4" style="max-width:720px">
+  <form method="post">
+    <div class="row g-3">
+
+      <div class="col-12">
+        <label class="form-label fw-semibold">Dirección <span class="text-danger">*</span></label>
+        <input type="text" name="direccion" class="form-control" required
+               value="{{ propiedad.direccion_propiedad or '' if propiedad else '' }}">
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label fw-semibold">Tipo</label>
+        <select name="tipo" class="form-select">
+          <option value="">— Seleccionar —</option>
+          {% for t in ['OFICINA','CASA','DEPARTAMENTO','LOCAL COMERCIAL','BODEGA','TERRENO'] %}
+          <option {% if propiedad and propiedad.tipo_propiedad == t %}selected{% endif %}>{{ t }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label fw-semibold">Estado</label>
+        <select name="estado" class="form-select">
+          {% for e in ['DISPONIBLE','ARRENDADA','VENDIDA'] %}
+          <option {% if propiedad and propiedad.estado == e %}selected{% endif %}>{{ e }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label fw-semibold">ROL</label>
+        <input type="text" name="rol" class="form-control" placeholder="ej: 3260-047"
+               value="{{ propiedad.rol or '' if propiedad else '' }}">
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label fw-semibold">m² Propiedad</label>
+        <input type="number" step="0.1" name="metros_propiedad" class="form-control"
+               value="{{ propiedad.metros_propiedad or '' if propiedad else '' }}">
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label fw-semibold">m² Terreno</label>
+        <input type="number" step="0.1" name="metros_terreno" class="form-control"
+               value="{{ propiedad.metros_terreno or '' if propiedad else '' }}">
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label fw-semibold">Valor arriendo (UF)</label>
+        <div class="input-group">
+          <span class="input-group-text">UF</span>
+          <input type="number" step="0.01" name="valor_arriendo_uf" class="form-control"
+                 value="{{ propiedad.valor_arriendo_uf or '' if propiedad else '' }}">
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label fw-semibold">Fecha contrato</label>
+        <input type="text" inputmode="numeric" name="fecha_contrato" id="input-fecha-contrato"
+               class="form-control" placeholder="dd/mm/aaaa" maxlength="10"
+               value="{{ propiedad.fecha_contrato|cl_fecha_input if propiedad else '' }}">
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label fw-semibold">Duración (meses)</label>
+        <input type="number" name="duracion_contrato" class="form-control"
+               value="{{ propiedad.duracion_contrato or '' if propiedad else '' }}">
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label fw-semibold">Arrendatario</label>
+        <select name="id_arrendatario" class="form-select">
+          <option value="">— Sin arrendatario —</option>
+          {% for a in arrendatarios %}
+          <option value="{{ a.id_arrendatario }}"
+            {% if propiedad and propiedad.id_arrendatario == a.id_arrendatario %}selected{% endif %}>
+            {{ a.nombre_arrendatario }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-12">
+        <div class="form-check form-switch mt-1">
+          <input class="form-check-input" type="checkbox" name="paga_gastos_comunes"
+                 id="chk_gc" value="1"
+                 {% if propiedad and propiedad.paga_gastos_comunes %}checked{% endif %}>
+          <label class="form-check-label fw-semibold" for="chk_gc">
+            Paga gastos comunes
+          </label>
+          <div class="text-muted small">
+            Incluir esta propiedad en el prorrateo de gastos comunes según sus m².
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 d-flex gap-2 pt-2">
+        <button type="submit" class="btn btn-primary px-4">
+          <i class="bi bi-check-lg me-1"></i>{{ "Guardar cambios" if propiedad else "Crear propiedad" }}
+        </button>
+        <a href="/propiedades" class="btn btn-outline-secondary">Cancelar</a>
+        {% if propiedad %}
+        <button type="button" class="btn btn-outline-danger ms-auto"
+                onclick="if(confirm('¿Eliminar esta propiedad?')) window.location='/propiedades/{{ propiedad.id_propiedad }}/eliminar'">
+          <i class="bi bi-trash"></i> Eliminar
+        </button>
+        {% endif %}
+      </div>
+
+    </div>
+  </form>
+</div>
+
+<script>
+function clFechaAISO(str) {
+  if (!str || str.length < 8) return '';
+  const p = str.split('/');
+  if (p.length !== 3 || p[2].length < 4) return '';
+  return `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`;
+}
+function autoSlashFecha(el) {
+  let v = el.value.replace(/\D/g,'');
+  if (v.length > 2) v = v.slice(0,2) + '/' + v.slice(2);
+  if (v.length > 5) v = v.slice(0,5) + '/' + v.slice(5);
+  if (v.length > 10) v = v.slice(0,10);
+  el.value = v;
+}
+const fc = document.getElementById('input-fecha-contrato');
+if (fc) {
+  fc.addEventListener('input', () => autoSlashFecha(fc));
+  fc.closest('form').addEventListener('submit', function() {
+    const iso = clFechaAISO(fc.value);
+    if (iso) fc.value = iso;
+  });
+}
+</script>
+
+{% if propiedad %}
+<!-- ── Contrato de arriendo ─────────────────────────────────────────────── -->
+<div class="card p-4 mt-3" style="max-width:720px">
+  <h6 class="fw-bold mb-3"><i class="bi bi-file-earmark-pdf text-danger me-2"></i>Contrato de arriendo</h6>
+
+  {% if propiedad.copia_contrato %}
+  <!-- Contrato ya cargado -->
+  <div class="d-flex align-items-center gap-3 mb-3 p-3 bg-light rounded">
+    <i class="bi bi-file-earmark-pdf-fill text-danger fs-3"></i>
+    <div class="flex-grow-1">
+      <div class="fw-semibold">{{ propiedad.copia_contrato }}</div>
+      <div class="text-muted small">PDF cargado</div>
+    </div>
+    <a href="/contratos/{{ propiedad.copia_contrato }}" target="_blank"
+       class="btn btn-sm btn-outline-primary">
+      <i class="bi bi-eye me-1"></i>Ver
+    </a>
+    <a href="/contratos/{{ propiedad.copia_contrato }}" download
+       class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-download me-1"></i>Descargar
+    </a>
+    <form method="post" action="/propiedades/{{ propiedad.id_propiedad }}/eliminar-contrato"
+          onsubmit="return confirm('¿Eliminar el contrato adjunto?')">
+      <button type="submit" class="btn btn-sm btn-outline-danger">
+        <i class="bi bi-trash"></i>
+      </button>
+    </form>
+  </div>
+  {% else %}
+  <p class="text-muted small mb-3">No hay contrato adjunto para esta propiedad.</p>
+  {% endif %}
+
+  <!-- Subir / reemplazar PDF -->
+  <form method="post" action="/propiedades/{{ propiedad.id_propiedad }}/subir-contrato"
+        enctype="multipart/form-data" class="d-flex align-items-center gap-2">
+    <input type="file" name="contrato" accept=".pdf" class="form-control form-control-sm" style="max-width:320px">
+    <button type="submit" class="btn btn-sm btn-success">
+      <i class="bi bi-upload me-1"></i>{{ "Reemplazar" if propiedad.copia_contrato else "Subir contrato" }}
+    </button>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

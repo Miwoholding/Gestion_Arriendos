@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}{{ "Editar" if arrendatario else "Nuevo" }} Arrendatario{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center gap-2 mb-4">
+  <a href="/arrendatarios" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
+  <h4 class="fw-bold mb-0">{{ "Editar" if arrendatario else "Nuevo" }} Arrendatario</h4>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+    <div class="alert alert-{{ cat }} alert-dismissible fade show">{{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+  {% endfor %}
+{% endwith %}
+
+<div class="card p-4" style="max-width:640px">
+  <form method="post">
+    <div class="row g-3">
+
+      <div class="col-md-8">
+        <label class="form-label fw-semibold">Nombre / Razón social <span class="text-danger">*</span></label>
+        <input type="text" name="nombre" class="form-control" required
+               value="{{ arrendatario.nombre_arrendatario or '' if arrendatario else '' }}">
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label fw-semibold">RUT</label>
+        <input type="text" name="rut" class="form-control" placeholder="12.345.678-9"
+               value="{{ arrendatario.rut_arrendatario or '' if arrendatario else '' }}">
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label fw-semibold">Contacto</label>
+        <input type="text" name="contacto" class="form-control"
+               value="{{ arrendatario.contacto or '' if arrendatario else '' }}">
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label fw-semibold">Teléfono</label>
+        <input type="text" name="telefono" class="form-control" placeholder="+56 9 1234 5678"
+               value="{{ arrendatario.telefono or '' if arrendatario else '' }}">
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label fw-semibold">Mail</label>
+        <input type="email" name="mail" class="form-control"
+               value="{{ arrendatario.mail or '' if arrendatario else '' }}">
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label fw-semibold">Actividad</label>
+        <input type="text" name="actividad" class="form-control" placeholder="ej: médico, dentista..."
+               value="{{ arrendatario.actividad_arrendatario or '' if arrendatario else '' }}">
+      </div>
+
+      <div class="col-12 d-flex gap-2 pt-2">
+        <button type="submit" class="btn btn-primary px-4">
+          <i class="bi bi-check-lg me-1"></i>{{ "Guardar cambios" if arrendatario else "Crear arrendatario" }}
+        </button>
+        <a href="/arrendatarios" class="btn btn-outline-secondary">Cancelar</a>
+        {% if arrendatario %}
+        <button type="button" class="btn btn-outline-danger ms-auto"
+                onclick="if(confirm('¿Eliminar este arrendatario?')) window.location='/arrendatarios/{{ arrendatario.id_arrendatario }}/eliminar'">
+          <i class="bi bi-trash"></i> Eliminar
+        </button>
+        {% endif %}
+      </div>
+
+    </div>
+  </form>
+</div>
+{% endblock %}

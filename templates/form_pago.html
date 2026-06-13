@@ -1,0 +1,641 @@
+{% extends "base.html" %}
+{% block title %}{{ "Detalle" if solo_lectura else ("Editar" if pago else "Ingresar") }} Pago{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<style>
+  /* Integración visual Flatpickr con Bootstrap 5 */
+  .flatpickr-calendar { font-family: inherit; }
+  .flatpickr-day.selected, .flatpickr-day.selected:hover {
+    background: #0d6efd; border-color: #0d6efd;
+  }
+  .flatpickr-day:hover { background: #e9f0ff; }
+  .flatpickr-months .flatpickr-month { background: #0d6efd; color: #fff; }
+  .flatpickr-current-month .flatpickr-monthDropdown-months,
+  .flatpickr-current-month input.cur-year { color: #fff; }
+  .flatpickr-weekday { color: #0d6efd; font-weight: 600; }
+  span.flatpickr-next-month svg, span.flatpickr-prev-month svg { fill: #fff; }
+</style>
+
+<div class="d-flex align-items-center gap-2 mb-4">
+  <a href="/pagos" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
+  <h4 class="fw-bold mb-0">
+    {% if solo_lectura %}Detalle del Pago
+    {% elif pago %}Editar Pago
+    {% else %}Ingresar Pago{% endif %}
+  </h4>
+  {% if solo_lectura %}
+  <span class="badge bg-secondary ms-1"><i class="bi bi-lock-fill me-1"></i>Solo lectura</span>
+  {% endif %}
+</div>
+
+{% if solo_lectura %}
+<div class="alert alert-warning d-flex align-items-center gap-2 py-2 mb-3" style="max-width:620px">
+  <i class="bi bi-shield-lock-fill fs-5"></i>
+  <div>Los pagos registrados <strong>no pueden modificarse</strong>. Si hay un error, elimina el pago y vuelve a ingresarlo.</div>
+</div>
+{% endif %}
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+    <div class="alert alert-{{ cat }} alert-dismissible fade show">{{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+  {% endfor %}
+{% endwith %}
+
+<div class="card p-4" style="max-width:960px">
+  {% if not solo_lectura %}
+  <!-- Indicador UF (solo al ingresar) -->
+  <div class="alert alert-info d-flex align-items-center gap-3 py-2 mb-4" id="uf-banner">
+    <i class="bi bi-graph-up fs-5"></i>
+    <div>
+      <strong>UF hoy:</strong>
+      <span id="uf-valor">cargando…</span>
+      <span class="text-muted small ms-2" id="uf-fecha"></span>
+    </div>
+    <button class="btn btn-sm btn-outline-primary ms-auto" id="btn-usar-uf" type="button">
+      Usar este valor
+    </button>
+  </div>
+  {% endif %}
+
+  <form method="post" id="form-pago">
+    <div class="row g-3">
+
+      <!-- Propiedad y Arrendatario lado a lado -->
+      <div class="col-md-7">
+        <label class="form-label fw-semibold">Propiedad {% if not solo_lectura %}<span class="text-danger">*</span>{% endif %}</label>
+        <select id="sel-propiedad" name="id_propiedad" class="form-select"
+                {% if not solo_lectura %}required{% else %}disabled{% endif %}>
+          <option value="">— Seleccionar —</option>
+          {% for p in propiedades %}
+          <option value="{{ p.id_propiedad }}"
+                  data-arr="{{ p.id_arrendatario or '' }}"
+                  data-uf="{{ p.valor_arriendo_uf or '' }}"
+                  data-m2="{{ p.metros_propiedad or '' }}"
+                  data-gc="{{ p.paga_gastos_comunes or 0 }}"
+            {% if pago and pago.id_propiedad == p.id_propiedad %}selected
+            {% elif presel and presel == p.id_propiedad %}selected{% endif %}>
+            {{ p.direccion_propiedad or '(sin dirección)' }}
+            {% if p.valor_arriendo_uf %} — {{ p.valor_arriendo_uf }} UF{% endif %}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Arrendatario (filtra propiedad, no se envía al servidor) -->
+      <div class="col-md-5">
+        <label class="form-label fw-semibold">Arrendatario</label>
+        <select id="sel-arrendatario" class="form-select" {% if solo_lectura %}disabled{% endif %}>
+          <option value="">— Todos —</option>
+          {% for a in arrendatarios %}
+          <option value="{{ a.id_arrendatario }}"
+            {% if presel_arr and presel_arr == a.id_arrendatario %}selected{% endif %}>
+            {{ a.nombre_arrendatario or '(sin nombre)' }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label fw-semibold">Fecha de pago {% if not solo_lectura %}<span class="text-danger">*</span>{% endif %}</label>
+        {% if not solo_lectura %}
+        <div class="input-group">
+          <input type="text" inputmode="numeric" name="fecha_pago" id="input-fecha-pago"
+                 class="form-control" placeholder="dd/mm/aaaa" maxlength="10" required
+                 value="{{ pago.fecha_pago|cl_fecha_input if pago else hoy }}" autocomplete="off">
+          <button class="btn btn-outline-secondary" type="button" id="btn-calendario" tabindex="-1"
+                  title="Abrir calendario">
+            <i class="bi bi-calendar3"></i>
+          </button>
+        </div>
+        {% else %}
+        <input type="text" name="fecha_pago" id="input-fecha-pago"
+               class="form-control" readonly
+               value="{{ pago.fecha_pago|cl_fecha_input if pago else hoy }}">
+        {% endif %}
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label fw-semibold">Mes</label>
+        <select name="mes" class="form-select" {% if solo_lectura %}disabled{% endif %}>
+          {% for n, nombre in meses.items() %}
+          <option value="{{ n }}" {% if (pago and pago.mes == n) or (not pago and n == mes_actual) %}selected{% endif %}>
+            {{ nombre }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label fw-semibold">Año</label>
+        <input type="number" name="año" class="form-control" min="2000" max="2099"
+               {% if solo_lectura %}readonly{% endif %}
+               value="{{ pago.año if pago else año_actual }}">
+      </div>
+
+      <!-- Fila: UF día · Arriendo UF · Arriendo pesos -->
+      <div class="col-md-4">
+        <label class="form-label fw-semibold">Valor UF del día</label>
+        <div class="input-group">
+          <span class="input-group-text">$</span>
+          <input type="text" inputmode="decimal" name="valor_uf" id="input-uf"
+                 class="form-control text-end"
+                 {% if solo_lectura %}readonly{% endif %}
+                 value="{{ pago.valor_uf|cl_uf if pago and pago.valor_uf else '' }}"
+                 placeholder="37.458,02">
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label fw-semibold">Arriendo (UF)</label>
+        <div class="input-group">
+          <span class="input-group-text">UF</span>
+          <input type="text" inputmode="decimal" name="valor_arriendo_uf" id="input-uf-arr"
+                 class="form-control text-end"
+                 {% if solo_lectura %}readonly{% endif %}
+                 value="{{ pago.valor_arriendo_uf|cl_uf if pago and pago.valor_arriendo_uf else '' }}"
+                 placeholder="8,50">
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label fw-semibold">Arriendo (pesos)</label>
+        <div class="input-group">
+          <span class="input-group-text">$</span>
+          <input type="text" inputmode="numeric" name="valor_arriendo" id="input-pesos"
+                 class="form-control text-end"
+                 {% if solo_lectura %}readonly{% endif %}
+                 value="{{ pago.valor_arriendo|cl_uf(0) if pago and pago.valor_arriendo else '' }}"
+                 placeholder="auto">
+        </div>
+      </div>
+
+      <!-- Separador -->
+      <div class="col-12"><hr class="my-1"></div>
+
+      <!-- Separador cargos adicionales -->
+      <div class="col-12">
+        <div class="text-muted small fw-semibold text-uppercase" style="letter-spacing:.05em">
+          <i class="bi bi-plus-circle me-1"></i>Cargos adicionales
+        </div>
+      </div>
+
+      <!-- Gasto común -->
+      <div class="col-md-3">
+        <label class="form-label fw-semibold">
+          Gasto común
+          <span id="lbl-ponderacion" class="text-muted d-block"
+                style="font-weight:normal;font-size:.72rem"></span>
+        </label>
+        <div class="input-group">
+          <span class="input-group-text">$</span>
+          <input type="text" inputmode="numeric" name="gasto_comun" id="input-gc"
+                 class="form-control text-end"
+                 {% if solo_lectura %}readonly{% endif %}
+                 value="{{ pago.gasto_comun|cl_uf(0) if pago and pago.gasto_comun else '' }}"
+                 placeholder="auto">
+        </div>
+      </div>
+
+      <!-- Publicidad -->
+      <div class="col-md-3">
+        <label class="form-label fw-semibold">Publicidad</label>
+        <div class="input-group">
+          <span class="input-group-text">$</span>
+          <input type="text" inputmode="numeric" name="publicidad" id="input-publicidad"
+                 class="form-control text-end"
+                 {% if solo_lectura %}readonly{% endif %}
+                 value="{{ pago.publicidad|cl_uf(0) if pago and pago.publicidad else '' }}"
+                 placeholder="0">
+        </div>
+      </div>
+
+      <!-- Secretaria -->
+      <div class="col-md-3">
+        <label class="form-label fw-semibold">Secretaria</label>
+        <div class="input-group">
+          <span class="input-group-text">$</span>
+          <input type="text" inputmode="numeric" name="secretaria" id="input-secretaria"
+                 class="form-control text-end"
+                 {% if solo_lectura %}readonly{% endif %}
+                 value="{{ pago.secretaria|cl_uf(0) if pago and pago.secretaria else '' }}"
+                 placeholder="0">
+        </div>
+      </div>
+
+      <!-- Esterilización -->
+      <div class="col-md-3">
+        <label class="form-label fw-semibold">Esterilización</label>
+        <div class="input-group">
+          <span class="input-group-text">$</span>
+          <input type="text" inputmode="numeric" name="esterilizacion" id="input-esterilizacion"
+                 class="form-control text-end"
+                 {% if solo_lectura %}readonly{% endif %}
+                 value="{{ pago.esterilizacion|cl_uf(0) if pago and pago.esterilizacion else '' }}"
+                 placeholder="0">
+        </div>
+      </div>
+
+      <!-- Otro + Observaciones -->
+      <div class="col-md-3">
+        <label class="form-label fw-semibold">Otro</label>
+        <div class="input-group">
+          <span class="input-group-text">$</span>
+          <input type="text" inputmode="numeric" name="otro" id="input-otro"
+                 class="form-control text-end"
+                 {% if solo_lectura %}readonly{% endif %}
+                 value="{{ pago.otro|cl_uf(0) if pago and pago.otro else '' }}"
+                 placeholder="0">
+        </div>
+      </div>
+
+      <div class="col-md-9">
+        <label class="form-label fw-semibold">Observaciones</label>
+        <input type="text" name="observaciones" class="form-control"
+               {% if solo_lectura %}readonly{% endif %}
+               value="{{ pago.observaciones or '' if pago else '' }}"
+               placeholder="Descripción del cargo 'Otro'">
+      </div>
+
+      <!-- Separador descuento / total -->
+      <div class="col-12"><hr class="my-1"></div>
+
+      <!-- Descuento -->
+      <div class="col-md-3">
+        <label class="form-label fw-semibold">Descuento</label>
+        <div class="input-group">
+          <span class="input-group-text">$</span>
+          <input type="text" inputmode="numeric" name="descuento" id="input-descuento"
+                 class="form-control text-end"
+                 {% if solo_lectura %}readonly{% endif %}
+                 value="{{ pago.descuento|cl_uf(0) if pago and pago.descuento else '' }}"
+                 placeholder="0">
+        </div>
+      </div>
+
+      <div class="col-md-1"></div>
+
+      <!-- Total a pagar -->
+      <div class="col-md-8">
+        <label class="form-label fw-semibold text-primary">Total a pagar</label>
+        <div class="input-group">
+          <span class="input-group-text bg-primary text-white fw-bold">$</span>
+          <input type="text" id="input-total" class="form-control text-end fw-bold fs-5"
+                 readonly
+                 value="{{ pago.total_pago|cl_uf(0) if pago and pago.total_pago else '' }}"
+                 placeholder="—">
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label fw-semibold">Forma de pago</label>
+        <select name="forma_pago" class="form-select" {% if solo_lectura %}disabled{% endif %}>
+          <option value="">— Seleccionar —</option>
+          {% for f in ['Transferencia','Depósito','Efectivo'] %}
+          <option {% if pago and pago.forma_pago == f %}selected{% endif %}>{{ f }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label fw-semibold">N° Factura / Boleta</label>
+        <input type="text" name="factura" class="form-control"
+               {% if solo_lectura %}readonly{% endif %}
+               value="{{ pago.factura or '' if pago else '' }}">
+      </div>
+
+      <div class="col-12 d-flex gap-2 pt-2">
+        {% if not solo_lectura %}
+        <button type="submit" class="btn btn-primary px-4">
+          <i class="bi bi-check-lg me-1"></i>Registrar pago
+        </button>
+        {% endif %}
+        <a href="/pagos" class="btn btn-outline-secondary">
+          {% if solo_lectura %}Volver{% else %}Cancelar{% endif %}
+        </a>
+        {% if pago and es_admin %}
+        <button type="button" class="btn btn-outline-danger ms-auto"
+                data-bs-toggle="modal" data-bs-target="#modalEliminar">
+          <i class="bi bi-trash"></i> Eliminar
+        </button>
+        {% endif %}
+      </div>
+
+    </div>
+  </form>
+</div>
+
+{% if pago and es_admin %}
+<!-- Modal confirmación eliminar (solo admin) -->
+<div class="modal fade" id="modalEliminar" tabindex="-1" aria-labelledby="modalEliminarLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title" id="modalEliminarLabel">
+          <i class="bi bi-exclamation-triangle-fill me-2"></i>Confirmar eliminación
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body py-4">
+        <p class="mb-1">¿Estás seguro de que deseas eliminar este pago?</p>
+        <p class="text-muted small mb-0">
+          <i class="bi bi-info-circle me-1"></i>Esta acción <strong>no se puede deshacer</strong>.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          <i class="bi bi-x-lg me-1"></i>Cancelar
+        </button>
+        <a href="/pagos/{{ pago.id_pago }}/eliminar" class="btn btn-danger">
+          <i class="bi bi-trash me-1"></i>Sí, eliminar
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if not solo_lectura %}
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js"></script>
+<script>
+// ── Datos GC del servidor ─────────────────────────────────────────────────────
+const GC_POR_MES  = {{ gc_por_mes | safe }};   // {"2026-01": 1854525, ...}
+const TOTAL_M2_GC = {{ total_m2_gc }};
+
+// ── Filtrar propiedades por arrendatario ──────────────────────────────────────
+const selArr  = document.getElementById('sel-arrendatario');
+const selProp = document.getElementById('sel-propiedad');
+
+// Guardar todas las opciones originales al cargar (antes de cualquier filtro)
+const todasOpciones = Array.from(selProp.options).map(o => ({
+  value:    o.value,
+  text:     o.text,
+  arr:      o.dataset.arr || '',
+  uf:       o.dataset.uf  || '',
+  m2:       o.dataset.m2  || '',   // ← m² de la propiedad
+  gc:       o.dataset.gc  || '0',  // ← paga gastos comunes
+  selected: o.selected,
+}));
+
+function filtrarPropiedades() {
+  const arrId      = selArr.value;
+  const valorActual = selProp.value;
+
+  // Reconstruir el select solo con las opciones que corresponden
+  selProp.innerHTML = '';
+  todasOpciones.forEach(o => {
+    if (!o.value || !arrId || o.arr === arrId) {
+      const opt    = document.createElement('option');
+      opt.value    = o.value;
+      opt.text     = o.text;
+      opt.dataset.arr = o.arr;
+      opt.dataset.uf  = o.uf;
+      opt.dataset.m2  = o.m2;   // ← preservar data-m2 al reconstruir
+      opt.dataset.gc  = o.gc;   // ← preservar data-gc al reconstruir
+      // Mantener la selección previa si sigue siendo válida
+      if (o.value === valorActual) opt.selected = true;
+      selProp.appendChild(opt);
+    }
+  });
+
+  // Si la propiedad seleccionada ya no está en la lista, limpiar
+  if (selProp.value !== valorActual) {
+    selProp.value = '';
+    document.getElementById('input-uf-arr').value = '';
+  }
+}
+
+// Al cambiar arrendatario → reconstruir lista de propiedades
+selArr.addEventListener('change', filtrarPropiedades);
+
+// Al elegir propiedad → sincronizar arrendatario + rellenar Arriendo UF + calcular GC
+selProp.addEventListener('change', function() {
+  const opt = this.options[this.selectedIndex];
+  if (!opt) return;
+  // Sincronizar arrendatario
+  if (opt.dataset.arr) selArr.value = opt.dataset.arr;
+  // Rellenar arriendo UF
+  const inputArr = document.getElementById('input-uf-arr');
+  if (opt.dataset.uf) {
+    inputArr.value = fmtCL(parseFloat(opt.dataset.uf), 2);
+    calcPesos();
+  } else {
+    inputArr.value = '';
+  }
+  // Calcular gasto común
+  calcGastoComun();
+});
+
+// Aplicar filtro inicial (si viene con arrendatario pre-seleccionado)
+filtrarPropiedades();
+
+// ── Formato chileno: punto miles, coma decimal ────────────────────────────────
+function fmtCL(num, dec) {
+  if (isNaN(num) || num === '') return '';
+  const s     = Math.abs(num).toFixed(dec);
+  const parts = s.split('.');
+  parts[0]    = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return (num < 0 ? '-' : '') + (dec > 0 ? parts[0] + ',' + parts[1] : parts[0]);
+}
+
+function parseCL(str) {
+  if (!str) return NaN;
+  // acepta "37.458,02"  y también "37458.02" (por si el usuario usa punto decimal)
+  const sinMiles = str.replace(/\./g, '');          // quita puntos de miles
+  const conPunto = sinMiles.replace(',', '.');       // coma → punto decimal
+  return parseFloat(conPunto);
+}
+
+function fmtInput(el, dec) {
+  const n = parseCL(el.value);
+  if (!isNaN(n)) el.value = fmtCL(n, dec);
+}
+
+// ── Cálculos ──────────────────────────────────────────────────────────────────
+function calcPesos() {
+  const uf  = parseCL(document.getElementById('input-uf').value)     || 0;
+  const arr = parseCL(document.getElementById('input-uf-arr').value) || 0;
+  if (uf && arr) {
+    document.getElementById('input-pesos').value = fmtCL(Math.round(uf * arr), 0);
+  }
+  calcTotal();
+}
+
+function calcGastoComun() {
+  // Obtener m² y si paga GC de la propiedad seleccionada
+  const opt = selProp.options[selProp.selectedIndex];
+  if (!opt || !opt.value) return;
+  const pagaGC = opt.dataset.gc === '1';
+  const m2Prop = parseFloat(opt.dataset.m2) || 0;
+  if (!pagaGC || !m2Prop || !TOTAL_M2_GC) {
+    document.getElementById('lbl-ponderacion').textContent = '';
+    document.getElementById('input-gc').value = '';
+    calcTotal();
+    return;
+  }
+  // GC corresponde al mes ANTERIOR al mes de arriendo
+  let mes = parseInt(document.querySelector('[name="mes"]').value);
+  let año = parseInt(document.querySelector('[name="año"]').value);
+  if (mes === 1) { mes = 12; año -= 1; } else { mes -= 1; }
+  const clave   = `${año}-${String(mes).padStart(2,'0')}`;
+  const totalGC = GC_POR_MES[clave] || 0;
+  const pct     = m2Prop / TOTAL_M2_GC;
+  const gcProp  = Math.round(totalGC * pct);
+  const pctStr  = (pct * 100).toFixed(2).replace('.', ',') + '%';
+  const NOMBRES_MES = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio',
+                       'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const mesTxt = `GC ${NOMBRES_MES[mes]} · ${pctStr} · ${fmtCL(m2Prop,0)} m²`;
+  document.getElementById('lbl-ponderacion').textContent = `(${mesTxt})`;
+  if (totalGC) {
+    document.getElementById('input-gc').value = fmtCL(gcProp, 0);
+  }
+  calcTotal();
+}
+
+function calcTotal() {
+  const get = id => parseCL(document.getElementById(id)?.value) || 0;
+  const arriendo      = get('input-pesos');
+  const gc            = get('input-gc');
+  const publicidad    = get('input-publicidad');
+  const secretaria    = get('input-secretaria');
+  const esterilizacion= get('input-esterilizacion');
+  const otro          = get('input-otro');
+  const descuento     = get('input-descuento');
+  const total = arriendo + gc + publicidad + secretaria + esterilizacion + otro - descuento;
+  document.getElementById('input-total').value = total > 0 ? fmtCL(total, 0) : '';
+}
+
+// Formatear al salir del campo (blur) y recalcular
+document.getElementById('input-uf').addEventListener('blur', function() {
+  fmtInput(this, 2); calcPesos();
+});
+document.getElementById('input-uf-arr').addEventListener('blur', function() {
+  fmtInput(this, 2); calcPesos();
+});
+document.getElementById('input-pesos').addEventListener('blur', function() {
+  fmtInput(this, 0); calcTotal();
+});
+['input-gc','input-publicidad','input-secretaria','input-esterilizacion','input-otro','input-descuento']
+  .forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('blur', function() { fmtInput(this, 0); calcTotal(); });
+  });
+
+// Recalcular GC al cambiar mes o año
+document.querySelector('[name="mes"]').addEventListener('change', calcGastoComun);
+document.querySelector('[name="año"]').addEventListener('change', calcGastoComun);
+
+// Antes de enviar: convertir formatos chilenos → valores que el servidor entiende
+document.getElementById('form-pago').addEventListener('submit', function() {
+  // Números
+  ['input-uf','input-uf-arr','input-pesos','input-gc','input-publicidad',
+   'input-secretaria','input-esterilizacion','input-otro','input-descuento'].forEach(function(id) {
+    const el = document.getElementById(id);
+    const n  = parseCL(el.value);
+    if (!isNaN(n)) el.value = n;
+  });
+  // Fecha: dd/mm/aaaa → yyyy-mm-dd
+  const iso = clFechaAISO(inputFecha.value);
+  if (iso) inputFecha.value = iso;
+});
+
+// ── Helpers de fecha chilena ──────────────────────────────────────────────────
+function clFechaAISO(str) {
+  // dd/mm/aaaa → yyyy-mm-dd
+  if (!str || str.length < 8) return '';
+  const p = str.split('/');
+  if (p.length !== 3 || p[2].length < 4) return '';
+  return `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`;
+}
+function autoSlashFecha(el) {
+  let v = el.value.replace(/\D/g,'');
+  if (v.length > 2)  v = v.slice(0,2) + '/' + v.slice(2);
+  if (v.length > 5)  v = v.slice(0,5) + '/' + v.slice(5);
+  if (v.length > 10) v = v.slice(0,10);
+  el.value = v;
+}
+
+// ── Cargar UF según fecha de pago (API mindicador.cl) ────────────────────────
+const inputFecha = document.querySelector('[name="fecha_pago"]');
+const spanValorUF = document.getElementById('uf-valor');
+const spanFechaUF = document.getElementById('uf-fecha');
+const btnUsarUF   = document.getElementById('btn-usar-uf');
+const banner      = document.getElementById('uf-banner');
+
+function isoACL(iso) {
+  // "YYYY-MM-DD" → "DD-MM-YYYY"
+  if (!iso) return '';
+  const [a, m, d] = iso.slice(0, 10).split('-');
+  return `${d}-${m}-${a}`;
+}
+
+function cargarUF(fechaISO) {
+  // fechaISO: "YYYY-MM-DD"  →  API espera "DD-MM-YYYY"
+  if (!fechaISO) return;
+  const fechaApi = isoACL(fechaISO);
+
+  spanValorUF.textContent = 'cargando…';
+  spanFechaUF.textContent = '';
+  banner.style.display = '';
+
+  fetch(`https://mindicador.cl/api/uf/${fechaApi}`)
+    .then(r => r.json())
+    .then(d => {
+      if (!d.serie || !d.serie.length) {
+        spanValorUF.textContent = 'No disponible para esa fecha';
+        return;
+      }
+      const val        = d.serie[0].valor;
+      const fechaMuest = isoACL(d.serie[0].fecha.slice(0, 10));
+      spanValorUF.textContent = '$ ' + fmtCL(val, 2);
+      spanFechaUF.textContent = '(' + fechaMuest + ')';
+
+      // Actualizar botón "Usar este valor"
+      btnUsarUF.onclick = () => {
+        document.getElementById('input-uf').value = fmtCL(val, 2);
+        calcPesos();
+      };
+
+      // Auto-rellenar si el campo UF está vacío
+      if (!document.getElementById('input-uf').value) {
+        document.getElementById('input-uf').value = fmtCL(val, 2);
+        calcPesos();
+      }
+    })
+    .catch(() => {
+      spanValorUF.textContent = 'Sin conexión';
+    });
+}
+
+// Auto-insertar barras mientras se escribe + disparar carga de UF
+inputFecha.addEventListener('input', function() {
+  autoSlashFecha(this);
+});
+inputFecha.addEventListener('blur', function() {
+  const iso = clFechaAISO(this.value);
+  if (iso) cargarUF(iso);
+});
+
+// Carga inicial
+cargarUF(clFechaAISO(inputFecha.value) || inputFecha.value);
+
+// ── Calendario Flatpickr ──────────────────────────────────────────────────────
+const fp = flatpickr(inputFecha, {
+  dateFormat: "d/m/Y",          // formato chileno dd/mm/yyyy
+  locale: "es",
+  allowInput: true,             // permite tipear manualmente
+  disableMobile: true,          // siempre muestra el custom calendar
+  onChange: function(selectedDates, dateStr) {
+    // Al seleccionar fecha desde el calendario → cargar UF
+    const iso = clFechaAISO(dateStr);
+    if (iso) cargarUF(iso);
+  }
+});
+
+// Botón calendario → abrir/cerrar picker
+document.getElementById('btn-calendario').addEventListener('click', function() {
+  fp.toggle();
+});
+</script>
+{% endif %}
+{% endblock %}

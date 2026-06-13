@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+
+<h4 class="fw-bold mb-4">Dashboard</h4>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="stat-card" style="border-color:#0d6efd">
+      <div class="num text-primary">{{ stats.propiedades }}</div>
+      <div class="lbl">Propiedades</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card" style="border-color:#198754">
+      <div class="num text-success">{{ stats.arrendadas }}</div>
+      <div class="lbl">Arrendadas</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card" style="border-color:#fd7e14">
+      <div class="num text-warning">{{ stats.arrendatarios }}</div>
+      <div class="lbl">Arrendatarios</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card" style="border-color:#6f42c1">
+      <div class="num text-purple" style="color:#6f42c1">{{ stats.pagos_año }}</div>
+      <div class="lbl">Pagos este año</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <!-- Pagos por mes -->
+  <div class="col-lg-7">
+    <div class="card p-3">
+      <h6 class="fw-bold mb-3">Recaudación mensual {{ año_actual }} (UF)</h6>
+      <table class="table table-sm table-hover">
+        <thead><tr><th>Mes</th><th class="text-end">UF total</th><th class="text-end">Pagos</th></tr></thead>
+        <tbody>
+          {% for row in pagos_mes %}
+          <tr>
+            <td>{{ meses[row.mes] }}</td>
+            <td class="text-end">{{ row.total_uf|cl_uf(1) }}</td>
+            <td class="text-end">{{ row.cantidad }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Últimos pagos -->
+  <div class="col-lg-5">
+    <div class="card p-3">
+      <h6 class="fw-bold mb-3">Últimos pagos</h6>
+      <table class="table table-sm table-hover">
+        <thead><tr><th>Fecha</th><th>Propiedad</th><th class="text-end">UF</th></tr></thead>
+        <tbody>
+          {% for p in ultimos_pagos %}
+          <tr>
+            <td>{{ p.fecha_pago|cl_fecha }}</td>
+            <td class="text-truncate" style="max-width:140px" title="{{ p.direccion }}">{{ p.direccion or "—" }}</td>
+            <td class="text-end">{{ p.valor_arriendo_uf|cl_uf }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

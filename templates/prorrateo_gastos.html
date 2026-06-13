@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}Prorrateo Gastos Comunes{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center gap-2 mb-4">
+  <a href="/gastos" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
+  <h4 class="fw-bold mb-0">Prorrateo Gastos Comunes</h4>
+</div>
+
+<!-- Filtros -->
+<div class="card p-3 mb-3">
+  <form class="row g-2 align-items-end" method="get">
+    <div class="col-md-2">
+      <label class="form-label fw-semibold mb-1 small">Mes</label>
+      <select class="form-select form-select-sm" name="mes">
+        <option value="">Todos los meses</option>
+        {% for n, nombre in meses.items() %}
+        <option value="{{ n }}" {% if mes==n|string %}selected{% endif %}>{{ nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label fw-semibold mb-1 small">Año</label>
+      <select class="form-select form-select-sm" name="año">
+        {% for a in años %}
+        <option {% if año==a|string %}selected{% endif %}>{{ a }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-auto">
+      <button class="btn btn-sm btn-primary">Calcular</button>
+    </div>
+  </form>
+</div>
+
+{% if not filas %}
+<div class="alert alert-warning">
+  <i class="bi bi-exclamation-triangle me-2"></i>
+  No hay propiedades marcadas como <strong>paga gastos comunes</strong>.
+  Ve a cada propiedad y activa la opción correspondiente.
+</div>
+{% else %}
+
+<!-- Resumen GC del periodo -->
+<div class="row g-3 mb-3">
+  <div class="col-md-4">
+    <div class="card p-3 text-center">
+      <div class="fw-bold text-danger fs-4">{{ total_gc|cl_pesos }}</div>
+      <div class="text-muted small">Total gastos comunes</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card p-3 text-center">
+      <div class="fw-bold fs-4">{{ total_m2|int }} m²</div>
+      <div class="text-muted small">Total m² (propiedades GC)</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card p-3 text-center">
+      <div class="fw-bold text-primary fs-4">{{ filas|length }}</div>
+      <div class="text-muted small">Propiedades</div>
+    </div>
+  </div>
+</div>
+
+<!-- Desglose por ítem -->
+{% if items_gc %}
+<div class="card p-3 mb-3">
+  <h6 class="fw-bold mb-2">Composición del total</h6>
+  <div class="row g-2">
+    {% for nombre, total in items_gc %}
+    <div class="col-auto">
+      <span class="badge bg-light text-dark border">
+        {{ nombre }}: {{ total|cl_pesos }}
+      </span>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Tabla prorrateo -->
+<div class="card">
+  <div class="card-header fw-bold py-2">Distribución por propiedad</div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>Propiedad</th>
+          <th>Arrendatario</th>
+          <th class="text-end">m²</th>
+          <th class="text-end">Ponderación</th>
+          <th class="text-end">Monto GC</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in filas %}
+        <tr>
+          <td>
+            <a href="/propiedades/{{ f.id_propiedad }}/editar"
+               class="text-decoration-none">{{ f.direccion }}</a>
+          </td>
+          <td class="text-muted">{{ f.arrendatario }}</td>
+          <td class="text-end">{{ f.m2|int if f.m2 else "—" }}</td>
+          <td class="text-end">
+            <div class="d-flex align-items-center justify-content-end gap-2">
+              <div class="progress flex-grow-1" style="height:6px;max-width:80px">
+                <div class="progress-bar bg-primary" style="width:{{ f.pct }}%"></div>
+              </div>
+              <span class="fw-semibold">{{ "%.2f"|format(f.pct) }}%</span>
+            </div>
+          </td>
+          <td class="text-end fw-semibold {{ 'text-danger' if total_gc else '' }}">
+            {{ f.monto_gc|cl_pesos if total_gc else "—" }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot class="table-light fw-bold">
+        <tr>
+          <td colspan="2">Total</td>
+          <td class="text-end">{{ total_m2|int }} m²</td>
+          <td class="text-end">100,00%</td>
+          <td class="text-end">{{ total_gc|cl_pesos }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

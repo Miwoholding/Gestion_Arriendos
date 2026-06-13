@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Pagos{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="fw-bold mb-0">Pagos</h4>
+  <a href="/pagos/nuevo" class="btn btn-primary btn-sm">
+    <i class="bi bi-plus-lg me-1"></i>Ingresar pago
+  </a>
+</div>
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+    <div class="alert alert-{{ cat }} alert-dismissible fade show">{{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+  {% endfor %}
+{% endwith %}
+
+<div class="card p-3 mb-3">
+  <form class="row g-2" method="get">
+    <div class="col-md-2">
+      <select class="form-select form-select-sm" name="mes">
+        <option value="">Todos los meses</option>
+        {% for n, nombre in meses.items() %}
+        <option value="{{ n }}" {% if mes==n|string %}selected{% endif %}>{{ nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <select class="form-select form-select-sm" name="año">
+        <option value="">Todos los años</option>
+        {% for a in años %}
+        <option {% if año==a|string %}selected{% endif %}>{{ a }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-4">
+      <select class="form-select form-select-sm" name="id_propiedad">
+        <option value="">Todas las propiedades</option>
+        {% for p in propiedades %}
+        <option value="{{ p.id_propiedad }}" {% if id_propiedad==p.id_propiedad|string %}selected{% endif %}>
+          {{ p.direccion_propiedad or '(sin dirección)' }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-auto">
+      <button class="btn btn-sm btn-primary">Filtrar</button>
+      <a class="btn btn-sm btn-outline-secondary" href="/pagos">Limpiar</a>
+    </div>
+  </form>
+</div>
+
+{% if pagos %}
+<div class="card p-2 mb-3 bg-light border-0">
+  <div class="row text-center">
+    <div class="col">
+      <div class="fw-bold text-primary">{{ total_uf|cl_uf(1) }} UF</div>
+      <div class="text-muted small">Total UF</div>
+    </div>
+    <div class="col">
+      <div class="fw-bold text-success">{{ total_pesos|cl_pesos }}</div>
+      <div class="text-muted small">Total pesos</div>
+    </div>
+    <div class="col">
+      <div class="fw-bold">{{ pagos|length }}</div>
+      <div class="text-muted small">Pagos</div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr><th>#</th><th>Fecha</th><th>Propiedad</th><th>Arrendatario</th><th class="text-end">UF</th><th class="text-end">Valor UF</th><th class="text-end">Pesos</th><th>Forma pago</th><th>Factura</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for p in pagos %}
+        <tr>
+          <td class="text-muted">{{ p.id_pago }}</td>
+          <td>{{ p.fecha_pago|cl_fecha }}</td>
+          <td class="text-truncate" style="max-width:160px" title="{{ p.direccion }}">{{ p.direccion or "—" }}</td>
+          <td class="text-truncate" style="max-width:130px" title="{{ p.arrendatario }}">{{ p.arrendatario or "—" }}</td>
+          <td class="text-end">{{ p.valor_arriendo_uf|cl_uf }}</td>
+          <td class="text-end">{{ p.valor_uf|cl_pesos }}</td>
+          <td class="text-end">{{ p.valor_arriendo|cl_pesos }}</td>
+          <td>
+            {% if p.forma_pago %}
+              <span class="badge bg-light text-dark">{{ p.forma_pago }}</span>
+            {% else %}—{% endif %}
+          </td>
+          <td>{{ p.factura or "—" }}</td>
+          <td>
+            <a href="/pagos/{{ p.id_pago }}/editar" class="btn btn-sm btn-outline-secondary py-0" title="Ver detalle">
+              <i class="bi bi-eye"></i>
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

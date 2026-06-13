@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}{{ "Editar" if usuario else "Nuevo" }} Usuario{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center gap-2 mb-4">
+  <a href="/usuarios" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
+  <h4 class="fw-bold mb-0">{{ "Editar" if usuario else "Nuevo" }} Usuario</h4>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+    <div class="alert alert-{{ cat }} alert-dismissible fade show">{{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+  {% endfor %}
+{% endwith %}
+
+<div class="card p-4" style="max-width:500px">
+  <form method="post">
+    <div class="row g-3">
+
+      <div class="col-12">
+        <label class="form-label fw-semibold">Nombre de usuario <span class="text-danger">*</span></label>
+        <input type="text" name="username" class="form-control"
+               value="{{ usuario.username if usuario else '' }}"
+               {% if usuario %}readonly{% else %}required{% endif %}
+               placeholder="ej: jperez">
+        {% if usuario %}<div class="text-muted small mt-1">El nombre de usuario no se puede cambiar.</div>{% endif %}
+      </div>
+
+      <div class="col-12">
+        <label class="form-label fw-semibold">Nombre completo</label>
+        <input type="text" name="nombre" class="form-control"
+               value="{{ usuario.nombre if usuario else '' }}"
+               placeholder="ej: Juan Pérez">
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label fw-semibold">Rol <span class="text-danger">*</span></label>
+        <select name="rol" class="form-select" required>
+          <option value="usuario" {% if not usuario or usuario.rol_val=='usuario' %}selected{% endif %}>
+            Usuario
+          </option>
+          <option value="admin" {% if usuario and usuario.rol_val=='admin' %}selected{% endif %}>
+            Administrador
+          </option>
+        </select>
+      </div>
+
+      {% if usuario %}
+      <div class="col-md-6">
+        <label class="form-label fw-semibold">Estado</label>
+        <div class="form-check form-switch mt-2">
+          <input class="form-check-input" type="checkbox" name="activo" value="1"
+                 {% if usuario.activo %}checked{% endif %}>
+          <label class="form-check-label">Activo</label>
+        </div>
+      </div>
+      {% endif %}
+
+      <div class="col-12"><hr class="my-1"></div>
+
+      <div class="col-12">
+        <label class="form-label fw-semibold">
+          {{ "Nueva contraseña" if usuario else "Contraseña" }}
+          {% if not usuario %}<span class="text-danger">*</span>{% endif %}
+        </label>
+        <input type="password" name="{{ 'nueva_password' if usuario else 'password' }}"
+               class="form-control"
+               {% if not usuario %}required{% endif %}
+               placeholder="{{ 'Dejar vacío para no cambiar' if usuario else 'Mínimo 4 caracteres' }}">
+        {% if usuario %}
+        <div class="text-muted small mt-1">Dejar vacío para mantener la contraseña actual.</div>
+        {% endif %}
+      </div>
+
+      <div class="col-12 d-flex gap-2 pt-2">
+        <button type="submit" class="btn btn-primary px-4">
+          <i class="bi bi-check-lg me-1"></i>{{ "Guardar cambios" if usuario else "Crear usuario" }}
+        </button>
+        <a href="/usuarios" class="btn btn-outline-secondary">Cancelar</a>
+      </div>
+
+    </div>
+  </form>
+</div>
+{% endblock %}

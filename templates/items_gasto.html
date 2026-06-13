@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Ítems de Gastos Comunes{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center gap-2 mb-4">
+  <a href="/gastos" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
+  <h4 class="fw-bold mb-0">Ítems de Gastos Comunes</h4>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+    <div class="alert alert-{{ cat }} alert-dismissible fade show">{{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+  {% endfor %}
+{% endwith %}
+
+<div class="row g-3">
+  <!-- Lista de ítems -->
+  <div class="col-md-7">
+    <div class="card">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead>
+            <tr><th>Ítem</th><th class="text-center">Estado</th><th></th></tr>
+          </thead>
+          <tbody>
+            {% for i in items %}
+            <tr class="{{ '' if i.activo else 'text-muted' }}">
+              <td class="fw-semibold">
+                {{ i.nombre }}
+                {% if not i.activo %}
+                  <span class="badge bg-secondary ms-1 small">inactivo</span>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                <a href="/gastos/items/{{ i.id_item }}/toggle"
+                   class="btn btn-sm {{ 'btn-outline-success' if i.activo else 'btn-outline-secondary' }} py-0"
+                   title="{{ 'Desactivar' if i.activo else 'Activar' }}">
+                  <i class="bi bi-{{ 'check-circle' if i.activo else 'slash-circle' }}"></i>
+                </a>
+              </td>
+              <td>
+                <a href="/gastos/items/{{ i.id_item }}/eliminar"
+                   class="btn btn-sm btn-outline-danger py-0"
+                   onclick="return confirm('¿Eliminar «{{ i.nombre }}»?')"
+                   title="Eliminar">
+                  <i class="bi bi-trash"></i>
+                </a>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="3" class="text-center text-muted py-3">Sin ítems registrados</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Formulario agregar nuevo -->
+  <div class="col-md-5">
+    <div class="card p-4">
+      <h6 class="fw-bold mb-3"><i class="bi bi-plus-circle me-2 text-primary"></i>Agregar ítem</h6>
+      <form method="post" action="/gastos/items/nuevo">
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Nombre del ítem</label>
+          <input type="text" name="nombre" class="form-control"
+                 placeholder="ej: Agua potable, Internet..." required autofocus>
+        </div>
+        <button type="submit" class="btn btn-primary w-100">
+          <i class="bi bi-plus-lg me-1"></i>Agregar
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

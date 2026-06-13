@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Pagos del Mes{% endblock %}
+{% block content %}
+
+<h4 class="fw-bold mb-4">Consulta Pagos por Mes</h4>
+
+<!-- Selector -->
+<div class="card p-3 mb-3">
+  <form class="row g-2 align-items-end" method="get">
+    <div class="col-md-3">
+      <label class="form-label fw-semibold mb-1">Mes</label>
+      <select class="form-select form-select-sm" name="mes">
+        {% for n, nombre in meses.items() %}
+        <option value="{{ n }}" {% if mes==n %}selected{% endif %}>{{ nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label fw-semibold mb-1">Año</label>
+      <select class="form-select form-select-sm" name="año">
+        {% for a in años %}
+        <option {% if año==a %}selected{% endif %}>{{ a }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-auto">
+      <button class="btn btn-sm btn-primary">Ver</button>
+    </div>
+  </form>
+</div>
+
+<!-- Totales -->
+{% if pagos %}
+<div class="card p-2 mb-3 bg-light border-0">
+  <div class="row text-center">
+    <div class="col">
+      <div class="fw-bold text-primary fs-5">{{ total_uf|cl_uf(1) }} UF</div>
+      <div class="text-muted small">Total UF</div>
+    </div>
+    <div class="col">
+      <div class="fw-bold text-success fs-5">{{ total_pesos|cl_pesos }}</div>
+      <div class="text-muted small">Total pesos</div>
+    </div>
+    <div class="col">
+      <div class="fw-bold fs-5">{{ pagos|length }}</div>
+      <div class="text-muted small">Pagos</div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>Propiedad</th>
+          <th>Arrendatario</th>
+          <th>Fecha pago</th>
+          <th class="text-end">UF</th>
+          <th class="text-end">Valor UF</th>
+          <th class="text-end">Pesos</th>
+          <th>Forma pago</th>
+          <th>Factura</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in pagos %}
+        <tr>
+          <td class="text-truncate" style="max-width:180px" title="{{ p.direccion }}">{{ p.direccion or "—" }}</td>
+          <td class="text-truncate" style="max-width:140px" title="{{ p.arrendatario }}">{{ p.arrendatario or "—" }}</td>
+          <td>{{ p.fecha_pago|cl_fecha }}</td>
+          <td class="text-end">{{ p.valor_arriendo_uf|cl_uf }}</td>
+          <td class="text-end">{{ p.valor_uf|cl_pesos }}</td>
+          <td class="text-end fw-semibold">{{ p.valor_arriendo|cl_pesos }}</td>
+          <td>
+            {% if p.forma_pago %}
+              <span class="badge bg-light text-dark">{{ p.forma_pago }}</span>
+            {% else %}—{% endif %}
+          </td>
+          <td>{{ p.factura or "—" }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" class="text-center text-muted py-4">Sin pagos para {{ meses[mes] }} {{ año }}</td></tr>
+        {% endfor %}
+      </tbody>
+      {% if pagos %}
+      <tfoot class="table-light fw-bold">
+        <tr>
+          <td colspan="3" class="text-end">Total</td>
+          <td class="text-end">{{ total_uf|cl_uf(1) }} UF</td>
+          <td></td>
+          <td class="text-end">{{ total_pesos|cl_pesos }}</td>
+          <td colspan="2"></td>
+        </tr>
+      </tfoot>
+      {% endif %}
+    </table>
+  </div>
+</div>
+{% endblock %}

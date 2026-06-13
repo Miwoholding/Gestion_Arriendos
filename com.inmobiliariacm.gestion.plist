@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.inmobiliariacm.gestion</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/rodrigomiranda/Library/Mobile Documents/com~apple~CloudDocs/INMOBILIARIA CM/gestion_arriendos_python/start.sh</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/rodrigomiranda/Library/Mobile Documents/com~apple~CloudDocs/INMOBILIARIA CM/gestion_arriendos_python</string>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/rodrigomiranda/Library/Mobile Documents/com~apple~CloudDocs/INMOBILIARIA CM/gestion_arriendos_python/logs/launchd.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/rodrigomiranda/Library/Mobile Documents/com~apple~CloudDocs/INMOBILIARIA CM/gestion_arriendos_python/logs/launchd.log</string>
+</dict>
+</plist>

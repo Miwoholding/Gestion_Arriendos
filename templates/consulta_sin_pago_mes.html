@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Sin pago del mes{% endblock %}
+{% block content %}
+
+<h4 class="fw-bold mb-4">Propiedades sin pago de arriendo</h4>
+
+<!-- Selector -->
+<div class="card p-3 mb-3">
+  <form class="row g-2 align-items-end" method="get">
+    <div class="col-md-3">
+      <label class="form-label fw-semibold mb-1">Mes</label>
+      <select class="form-select form-select-sm" name="mes">
+        {% for n, nombre in meses.items() %}
+        <option value="{{ n }}" {% if mes==n %}selected{% endif %}>{{ nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label fw-semibold mb-1">Año</label>
+      <select class="form-select form-select-sm" name="año">
+        {% for a in años %}
+        <option {% if año==a %}selected{% endif %}>{{ a }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-auto">
+      <button class="btn btn-sm btn-primary">Ver</button>
+    </div>
+  </form>
+</div>
+
+{% if propiedades %}
+<div class="card p-2 mb-3 bg-light border-0">
+  <div class="row text-center">
+    <div class="col">
+      <div class="fw-bold text-danger fs-5">{{ propiedades|length }}</div>
+      <div class="text-muted small">Sin pago — {{ meses[mes] }} {{ año }}</div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>Propiedad</th>
+          <th>Tipo</th>
+          <th class="text-end">Arriendo (UF)</th>
+          <th>Arrendatario</th>
+          <th>RUT</th>
+          <th>Teléfono</th>
+          <th>Mail</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in propiedades %}
+        <tr>
+          <td class="text-truncate" style="max-width:200px" title="{{ p.direccion }}">{{ p.direccion or "—" }}</td>
+          <td><span class="badge bg-light text-dark">{{ p.tipo or "—" }}</span></td>
+          <td class="text-end">{{ p.valor_uf|cl_uf(2) if p.valor_uf else "—" }}</td>
+          <td class="text-truncate" style="max-width:150px" title="{{ p.arrendatario }}">{{ p.arrendatario or "—" }}</td>
+          <td>{{ p.rut or "—" }}</td>
+          <td>{{ p.telefono or "—" }}</td>
+          <td>{{ p.mail or "—" }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="7" class="text-center text-muted py-4">
+            Todas las propiedades tienen pago registrado para {{ meses[mes] }} {{ año }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Permisos — {{ usuario.username }}{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center gap-2 mb-4">
+  <a href="/usuarios" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
+  <h4 class="fw-bold mb-0">Permisos de «{{ usuario.nombre or usuario.username }}»</h4>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+    <div class="alert alert-{{ cat }} alert-dismissible fade show">{{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+  {% endfor %}
+{% endwith %}
+
+<div class="card p-4" style="max-width:560px">
+  <p class="text-muted small mb-4">
+    <i class="bi bi-info-circle me-1"></i>
+    Selecciona los módulos y acciones a los que tendrá acceso este usuario.
+  </p>
+
+  <form method="post">
+    <div class="row g-3">
+
+      <!-- Grupo: Propiedades -->
+      <div class="col-12">
+        <div class="fw-semibold text-secondary small text-uppercase mb-2">
+          <i class="bi bi-houses me-1"></i>Propiedades y Arrendatarios
+        </div>
+        <div class="d-flex flex-column gap-2 ps-2">
+          {% for codigo, etiqueta in catalogo.items() if codigo in ['ver_propiedades','ver_arrendatarios'] %}
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" name="permisos"
+                   value="{{ codigo }}" id="perm_{{ codigo }}"
+                   {% if codigo in usuario.permisos_lista %}checked{% endif %}>
+            <label class="form-check-label" for="perm_{{ codigo }}">{{ etiqueta }}</label>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="col-12"><hr class="my-1"></div>
+
+      <!-- Grupo: Pagos -->
+      <div class="col-12">
+        <div class="fw-semibold text-secondary small text-uppercase mb-2">
+          <i class="bi bi-cash-stack me-1"></i>Pagos
+        </div>
+        <div class="d-flex flex-column gap-2 ps-2">
+          {% for codigo, etiqueta in catalogo.items() if codigo in ['ver_pagos','registrar_pagos'] %}
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" name="permisos"
+                   value="{{ codigo }}" id="perm_{{ codigo }}"
+                   {% if codigo in usuario.permisos_lista %}checked{% endif %}>
+            <label class="form-check-label" for="perm_{{ codigo }}">{{ etiqueta }}</label>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="col-12"><hr class="my-1"></div>
+
+      <!-- Grupo: Gastos -->
+      <div class="col-12">
+        <div class="fw-semibold text-secondary small text-uppercase mb-2">
+          <i class="bi bi-receipt me-1"></i>Gastos Comunes
+        </div>
+        <div class="d-flex flex-column gap-2 ps-2">
+          {% for codigo, etiqueta in catalogo.items() if codigo in ['ver_gastos','registrar_gastos','ver_prorrateo'] %}
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" name="permisos"
+                   value="{{ codigo }}" id="perm_{{ codigo }}"
+                   {% if codigo in usuario.permisos_lista %}checked{% endif %}>
+            <label class="form-check-label" for="perm_{{ codigo }}">{{ etiqueta }}</label>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="col-12"><hr class="my-1"></div>
+
+      <!-- Grupo: Consultas -->
+      <div class="col-12">
+        <div class="fw-semibold text-secondary small text-uppercase mb-2">
+          <i class="bi bi-bar-chart-line me-1"></i>Reportes y consultas
+        </div>
+        <div class="d-flex flex-column gap-2 ps-2">
+          {% for codigo, etiqueta in catalogo.items() if codigo in ['ver_consultas'] %}
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" name="permisos"
+                   value="{{ codigo }}" id="perm_{{ codigo }}"
+                   {% if codigo in usuario.permisos_lista %}checked{% endif %}>
+            <label class="form-check-label" for="perm_{{ codigo }}">{{ etiqueta }}</label>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="col-12 d-flex gap-2 pt-3">
+        <button type="submit" class="btn btn-primary px-4">
+          <i class="bi bi-check-lg me-1"></i>Guardar permisos
+        </button>
+        <a href="/usuarios" class="btn btn-outline-secondary">Cancelar</a>
+        <button type="button" class="btn btn-outline-secondary ms-auto"
+                onclick="document.querySelectorAll('[name=permisos]').forEach(c=>c.checked=true)">
+          Todos
+        </button>
+        <button type="button" class="btn btn-outline-secondary"
+                onclick="document.querySelectorAll('[name=permisos]').forEach(c=>c.checked=false)">
+          Ninguno
+        </button>
+      </div>
+
+    </div>
+  </form>
+</div>
+{% endblock %}

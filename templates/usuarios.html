@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Usuarios{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="fw-bold mb-0">Usuarios del sistema</h4>
+  <a href="/usuarios/nuevo" class="btn btn-primary btn-sm">
+    <i class="bi bi-plus-lg me-1"></i>Nuevo usuario
+  </a>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+    <div class="alert alert-{{ cat }} alert-dismissible fade show">{{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+  {% endfor %}
+{% endwith %}
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Usuario</th>
+          <th>Nombre</th>
+          <th class="text-center" style="width:200px">Rol</th>
+          <th class="text-center">Estado</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in usuarios %}
+        <tr>
+          <td class="fw-semibold">
+            <i class="bi bi-person-circle me-1 text-muted"></i>{{ u.username }}
+          </td>
+          <td>{{ u.nombre or "—" }}</td>
+
+          <!-- Selector de rol en línea -->
+          <td class="text-center">
+            {% set es_yo = (u.id_usuario == session.get('id_usuario')) %}
+            {% if es_yo %}
+              <!-- El admin no puede cambiar su propio rol -->
+              <span class="badge bg-warning text-dark px-3 py-2">
+                <i class="bi bi-shield-fill me-1"></i>Admin (tú)
+              </span>
+            {% else %}
+              <form method="post" action="/usuarios/{{ u.id_usuario }}/rol"
+                    class="d-flex align-items-center justify-content-center gap-2">
+                <select name="rol" class="form-select form-select-sm w-auto"
+                        onchange="this.form.submit()" title="Cambiar rol">
+                  <option value="usuario" {% if u.rol_val=='usuario' %}selected{% endif %}>
+                    👤 Usuario
+                  </option>
+                  <option value="admin" {% if u.rol_val=='admin' %}selected{% endif %}>
+                    🛡️ Admin
+                  </option>
+                </select>
+              </form>
+            {% endif %}
+          </td>
+
+          <td class="text-center">
+            {% if u.activo %}
+              <span class="badge bg-success">Activo</span>
+            {% else %}
+              <span class="badge bg-danger">Inactivo</span>
+            {% endif %}
+          </td>
+
+          <td class="text-end">
+            {% if u.rol_val == 'usuario' %}
+            <a href="/usuarios/{{ u.id_usuario }}/permisos"
+               class="btn btn-sm btn-outline-primary py-0 me-1" title="Gestionar permisos">
+              <i class="bi bi-shield-check"></i>
+            </a>
+            {% endif %}
+            <a href="/usuarios/{{ u.id_usuario }}/editar"
+               class="btn btn-sm btn-outline-secondary py-0" title="Editar">
+              <i class="bi bi-pencil"></i>
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="mt-3 text-muted small">
+  <i class="bi bi-info-circle me-1"></i>
+  El rol se puede cambiar directamente desde el selector. Para cambiar contraseña o desactivar un usuario, usa el botón <i class="bi bi-pencil"></i>.
+</div>
+{% endblock %}
