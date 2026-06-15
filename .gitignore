@@ -1,0 +1,26 @@
+# Base de datos (subir manualmente a PythonAnywhere)
+*.db
+*.db-shm
+*.db-wal
+*.db.bak
+
+# Variables de entorno (crear manualmente en el servidor)
+.env
+
+# Contratos PDF (subir manualmente a PythonAnywhere)
+contratos/
+
+# Logs
+logs/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
+.claude/

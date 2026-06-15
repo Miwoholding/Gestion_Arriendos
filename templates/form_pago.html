@@ -272,10 +272,17 @@
         </div>
       </div>
 
-      <div class="col-md-1"></div>
+      <!-- Observaciones descuento -->
+      <div class="col-md-5">
+        <label class="form-label fw-semibold">Observaciones descuento</label>
+        <input type="text" name="obs_descuento" class="form-control"
+               {% if solo_lectura %}readonly{% endif %}
+               value="{{ pago.obs_descuento or '' if pago else '' }}"
+               placeholder="Motivo del descuento">
+      </div>
 
       <!-- Total a pagar -->
-      <div class="col-md-8">
+      <div class="col-md-4">
         <label class="form-label fw-semibold text-primary">Total a pagar</label>
         <div class="input-group">
           <span class="input-group-text bg-primary text-white fw-bold">$</span>

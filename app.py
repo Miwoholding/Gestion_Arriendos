@@ -483,6 +483,7 @@ def pago_nuevo():
                 esterilizacion    = _float(request.form.get("esterilizacion")),
                 otro              = _float(request.form.get("otro")),
                 observaciones     = _str(request.form.get("observaciones")),
+                obs_descuento     = _str(request.form.get("obs_descuento")),
                 factura           = _str(request.form.get("factura")),
                 forma_pago        = FormaPago(request.form.get("forma_pago")) if request.form.get("forma_pago") else None,
             )

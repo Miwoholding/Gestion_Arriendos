@@ -102,7 +102,8 @@ class Pago(Base):
     secretaria    = Column(Float)       # cargo por secretaria
     esterilizacion = Column(Float)      # cargo por esterilización
     otro          = Column(Float)       # otro cargo
-    observaciones = Column(String(300)) # descripción del cargo "otro"
+    observaciones   = Column(String(300)) # descripción del cargo "otro"
+    obs_descuento   = Column(String(300)) # motivo del descuento
     # total_pago = valor_arriendo + gasto_comun + publicidad + secretaria + esterilizacion + otro - descuento
     factura = Column(String(50))
     forma_pago = Column(Enum(FormaPago))
