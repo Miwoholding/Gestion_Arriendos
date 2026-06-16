@@ -889,7 +889,8 @@ def prorrateo_gastos():
 
 # ── Ítems de gastos (mantenedor) ──────────────────────────────────────────────
 @app.route("/gastos/items")
-@admin_required
+@login_required
+@permiso_required("ver_gastos")
 def items_gasto():
     with Session(engine) as s:
         items = s.query(ItemGasto).order_by(ItemGasto.nombre).all()
@@ -897,7 +898,8 @@ def items_gasto():
     return render_template("items_gasto.html", items=data)
 
 @app.route("/gastos/items/nuevo", methods=["GET","POST"])
-@admin_required
+@login_required
+@permiso_required("registrar_gastos")
 def item_gasto_nuevo():
     if request.method == "POST":
         nombre = _str(request.form.get("nombre"))
