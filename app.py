@@ -405,12 +405,12 @@ def pagos():
         q2 = (s.query(Pago, Propiedad.direccion_propiedad, Arrendatario.nombre_arrendatario)
               .outerjoin(Propiedad,    Pago.id_propiedad == Propiedad.id_propiedad)
               .outerjoin(Arrendatario, Propiedad.id_arrendatario == Arrendatario.id_arrendatario))
-        if mes:          q2 = q2.filter(Pago.mes == int(mes))
-        if año:          q2 = q2.filter(Pago.año == int(año))
+        if mes:          q2 = q2.filter(func.strftime('%m', Pago.fecha_pago) == f"{int(mes):02d}")
+        if año:          q2 = q2.filter(func.strftime('%Y', Pago.fecha_pago) == str(año))
         if id_propiedad: q2 = q2.filter(Pago.id_propiedad == int(id_propiedad))
         rows = q2.order_by(Pago.fecha_pago.desc()).all()
-        años = [r[0] for r in s.query(Pago.año).distinct()
-                .filter(Pago.año != None).order_by(Pago.año.desc()).all()]
+        años = sorted({int(r[0]) for r in s.query(func.strftime('%Y', Pago.fecha_pago))
+                       .filter(Pago.fecha_pago != None).distinct().all()}, reverse=True)
         propiedades = (s.query(Propiedad)
                        .order_by(Propiedad.direccion_propiedad).all())
         props_data = [{c.key: getattr(p, c.key) for c in p.__mapper__.columns}
@@ -612,13 +612,15 @@ def consulta_pagos_mes():
                     Arrendatario.nombre_arrendatario)
             .outerjoin(Propiedad,    Pago.id_propiedad == Propiedad.id_propiedad)
             .outerjoin(Arrendatario, Propiedad.id_arrendatario == Arrendatario.id_arrendatario)
-            .filter(Pago.mes == mes, Pago.año == año)
+            .filter(
+                func.strftime('%m', Pago.fecha_pago) == f"{mes:02d}",
+                func.strftime('%Y', Pago.fecha_pago) == str(año)
+            )
             .order_by(Propiedad.direccion_propiedad)
             .all()
         )
-        años = [r[0] for r in
-                s.query(Pago.año).distinct().filter(Pago.año != None)
-                .order_by(Pago.año.desc()).all()]
+        años = sorted({int(r[0]) for r in s.query(func.strftime('%Y', Pago.fecha_pago))
+                       .filter(Pago.fecha_pago != None).distinct().all()}, reverse=True)
         result = []
         for p, dir_, arr in rows:
             d = {c.key: getattr(p, c.key) for c in p.__mapper__.columns}
@@ -638,24 +640,29 @@ def consulta_pagos_mes():
 @login_required
 @permiso_required("ver_consultas")
 def consulta_pagos_año():
-    """ConsultaPagosAño — resumen anual de pagos agrupado por mes."""
+    """ConsultaPagosAño — resumen anual de pagos agrupado por mes de fecha_pago."""
+    from types import SimpleNamespace
     año = _int(request.args.get("año")) or date.today().year
     with Session(engine) as s:
-        filas = (
+        _mes_fp = func.strftime('%m', Pago.fecha_pago)
+        filas_raw = (
             s.query(
-                Pago.mes,
+                _mes_fp.label("mes"),
                 func.count(Pago.id_pago).label("cantidad"),
                 func.sum(Pago.valor_arriendo_uf).label("total_uf"),
                 func.sum(Pago.valor_arriendo).label("total_pesos"),
             )
-            .filter(Pago.año == año, Pago.mes != None)
-            .group_by(Pago.mes)
-            .order_by(Pago.mes)
+            .filter(func.strftime('%Y', Pago.fecha_pago) == str(año),
+                    Pago.fecha_pago != None)
+            .group_by(_mes_fp)
+            .order_by(_mes_fp)
             .all()
         )
-        años = [r[0] for r in
-                s.query(Pago.año).distinct().filter(Pago.año != None)
-                .order_by(Pago.año.desc()).all()]
+        filas = [SimpleNamespace(mes=int(f.mes), cantidad=f.cantidad,
+                                 total_uf=f.total_uf, total_pesos=f.total_pesos)
+                 for f in filas_raw]
+        años = sorted({int(r[0]) for r in s.query(func.strftime('%Y', Pago.fecha_pago))
+                       .filter(Pago.fecha_pago != None).distinct().all()}, reverse=True)
         gran_total_uf    = sum(f.total_uf    or 0 for f in filas)
         gran_total_pesos = sum(f.total_pesos or 0 for f in filas)
     return render_template("consulta_pagos_año.html",
