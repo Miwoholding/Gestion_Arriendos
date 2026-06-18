@@ -47,13 +47,10 @@
   <div class="alert alert-info d-flex align-items-center gap-3 py-2 mb-4" id="uf-banner">
     <i class="bi bi-graph-up fs-5"></i>
     <div>
-      <strong>UF hoy:</strong>
+      <strong>UF fecha de pago:</strong>
       <span id="uf-valor">cargando…</span>
       <span class="text-muted small ms-2" id="uf-fecha"></span>
     </div>
-    <button class="btn btn-sm btn-outline-primary ms-auto" id="btn-usar-uf" type="button">
-      Usar este valor
-    </button>
   </div>
   {% endif %}
 
@@ -115,10 +112,11 @@
       </div>
 
       <div class="col-md-3">
-        <label class="form-label fw-semibold">Mes</label>
-        <select name="mes" class="form-select" {% if solo_lectura %}disabled{% endif %}>
+        <label class="form-label fw-semibold">Mes de arriendo {% if not solo_lectura %}<span class="text-danger">*</span>{% endif %}</label>
+        <select name="mes" class="form-select" {% if solo_lectura %}disabled{% endif %} {% if not solo_lectura %}required{% endif %}>
+          {% if not pago %}<option value="">— Seleccionar —</option>{% endif %}
           {% for n, nombre in meses.items() %}
-          <option value="{{ n }}" {% if (pago and pago.mes == n) or (not pago and n == mes_actual) %}selected{% endif %}>
+          <option value="{{ n }}" {% if pago and pago.mes == n %}selected{% endif %}>
             {{ nombre }}
           </option>
           {% endfor %}
@@ -563,10 +561,9 @@ function autoSlashFecha(el) {
 }
 
 // ── Cargar UF según fecha de pago (API mindicador.cl) ────────────────────────
-const inputFecha = document.querySelector('[name="fecha_pago"]');
+const inputFecha  = document.querySelector('[name="fecha_pago"]');
 const spanValorUF = document.getElementById('uf-valor');
 const spanFechaUF = document.getElementById('uf-fecha');
-const btnUsarUF   = document.getElementById('btn-usar-uf');
 const banner      = document.getElementById('uf-banner');
 
 function isoACL(iso) {
@@ -597,17 +594,9 @@ function cargarUF(fechaISO) {
       spanValorUF.textContent = '$ ' + fmtCL(val, 2);
       spanFechaUF.textContent = '(' + fechaMuest + ')';
 
-      // Actualizar botón "Usar este valor"
-      btnUsarUF.onclick = () => {
-        document.getElementById('input-uf').value = fmtCL(val, 2);
-        calcPesos();
-      };
-
-      // Auto-rellenar si el campo UF está vacío
-      if (!document.getElementById('input-uf').value) {
-        document.getElementById('input-uf').value = fmtCL(val, 2);
-        calcPesos();
-      }
+      // Siempre actualizar el campo UF al cambiar la fecha
+      document.getElementById('input-uf').value = fmtCL(val, 2);
+      calcPesos();
     })
     .catch(() => {
       spanValorUF.textContent = 'Sin conexión';
