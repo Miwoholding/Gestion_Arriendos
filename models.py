@@ -3,7 +3,7 @@ from enum import Enum as PyEnum
 
 from sqlalchemy import (
     Column, Integer, String, Float, Date, ForeignKey,
-    Enum, Text, create_engine, exists
+    Enum, Text, create_engine, exists, func
 )
 from sqlalchemy.orm import DeclarativeBase, relationship, Session
 
@@ -162,7 +162,9 @@ def consulta_pagos_año(session: Session, año: int):
 
 
 def propiedades_sin_pago_mes(session: Session, mes: int, año: int):
-    """Propiedades arrendadas que no tienen pago registrado para el mes/año dado."""
+    """Propiedades arrendadas, vigentes desde su fecha de contrato, sin pago del mes/año dado."""
+    periodo_consulta = f"{año}{mes:02d}"  # ej: "202606"
+
     pago_existe = (
         exists()
         .where(Pago.id_propiedad == Propiedad.id_propiedad)
@@ -173,6 +175,9 @@ def propiedades_sin_pago_mes(session: Session, mes: int, año: int):
         session.query(Propiedad, Arrendatario)
         .join(Arrendatario, Propiedad.id_arrendatario == Arrendatario.id_arrendatario)
         .filter(Propiedad.estado == EstadoPropiedad.ARRENDADA)
+        .filter(Propiedad.fecha_contrato != None)
+        # Solo propiedades cuyo contrato ya estaba vigente en el mes consultado
+        .filter(func.strftime('%Y%m', Propiedad.fecha_contrato) <= periodo_consulta)
         .filter(~pago_existe)
         .order_by(Propiedad.direccion_propiedad)
         .all()
