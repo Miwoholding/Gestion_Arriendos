@@ -62,6 +62,7 @@
           <th class="text-end">Pesos</th>
           <th>Forma pago</th>
           <th>Factura</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
@@ -79,9 +80,14 @@
             {% else %}—{% endif %}
           </td>
           <td>{{ p.factura or "—" }}</td>
+          <td>
+            <a href="/pagos/{{ p.id_pago }}/editar" class="btn btn-sm btn-outline-secondary py-0" title="Ver detalle">
+              <i class="bi bi-eye"></i>
+            </a>
+          </td>
         </tr>
         {% else %}
-        <tr><td colspan="8" class="text-center text-muted py-4">Sin pagos para {{ meses[mes] }} {{ año }}</td></tr>
+        <tr><td colspan="9" class="text-center text-muted py-4">Sin pagos para {{ meses[mes] }} {{ año }}</td></tr>
         {% endfor %}
       </tbody>
       {% if pagos %}
@@ -91,7 +97,7 @@
           <td class="text-end">{{ total_uf|cl_uf(1) }} UF</td>
           <td></td>
           <td class="text-end">{{ total_pesos|cl_pesos }}</td>
-          <td colspan="2"></td>
+          <td colspan="3"></td>
         </tr>
       </tfoot>
       {% endif %}
