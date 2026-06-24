@@ -31,20 +31,18 @@
 
 {% if propiedades %}
 <div class="card p-2 mb-3 bg-light border-0">
-  <div class="row text-center g-2">
+  <div class="row text-center">
+    <div class="col">
+      <div class="fw-bold text-primary fs-5">{{ total_uf|cl_uf(1) }} UF</div>
+      <div class="text-muted small">Total UF</div>
+    </div>
+    <div class="col">
+      <div class="fw-bold text-success fs-5">{{ total_clp|cl_pesos if total_clp else "—" }}</div>
+      <div class="text-muted small">Total pesos{% if uf_hoy %} (UF {{ uf_hoy|cl_uf(2) }}){% endif %}</div>
+    </div>
     <div class="col">
       <div class="fw-bold text-danger fs-5">{{ propiedades|length }}</div>
-      <div class="text-muted small">Sin pago — {{ meses[mes] }} {{ año }}</div>
-    </div>
-    <div class="col border-start">
-      <div class="fw-bold fs-5">{{ total_uf|cl_uf(2) if total_uf else "—" }} UF</div>
-      <div class="text-muted small">Total UF adeudado</div>
-    </div>
-    <div class="col border-start">
-      <div class="fw-bold fs-5">{{ total_clp|cl_pesos if total_clp else "—" }}</div>
-      <div class="text-muted small">
-        Total CLP{% if uf_hoy %} <span class="fw-normal">(UF {{ uf_hoy|cl_uf(2) }} hoy)</span>{% endif %}
-      </div>
+      <div class="text-muted small">Sin pago</div>
     </div>
   </div>
 </div>
