@@ -2,6 +2,7 @@ import os
 import functools
 from datetime import date, datetime
 from pathlib import Path
+import urllib.request, json as _json
 from flask import Flask, render_template, request, redirect, url_for, flash, session, send_from_directory, abort
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -152,6 +153,17 @@ app.jinja_env.filters["cl_fecha"]       = _fmt_fecha
 app.jinja_env.filters["cl_fecha_input"] = _fmt_fecha_input
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
+def _get_uf_dia(fecha: date | None = None) -> float | None:
+    """Valor UF para una fecha dada (o hoy) desde mindicador.cl. Retorna None si falla."""
+    try:
+        d = fecha or date.today()
+        url = f"https://mindicador.cl/api/uf/{d.day:02d}-{d.month:02d}-{d.year}"
+        with urllib.request.urlopen(url, timeout=4) as r:
+            data = _json.loads(r.read())
+        return float(data["serie"][0]["valor"])
+    except Exception:
+        return None
+
 def _str(v): return v.strip() if v and v.strip() else None
 def _float(v):
     try: return float(v) if v else None
@@ -733,9 +745,13 @@ def consulta_sin_pago_mes():
                 "telefono":     arr.telefono,
                 "mail":         arr.mail,
             })
+        total_uf = sum(r["valor_uf"] or 0 for r in result)
+        uf_hoy   = _get_uf_dia() if result else None
+        total_clp = round(total_uf * uf_hoy) if (uf_hoy and total_uf) else None
     return render_template("consulta_sin_pago_mes.html",
                            propiedades=result, meses=MESES, años=años,
-                           mes=mes, año=año)
+                           mes=mes, año=año,
+                           total_uf=total_uf, uf_hoy=uf_hoy, total_clp=total_clp)
 
 
 # ── Gastos Comunes ────────────────────────────────────────────────────────────
