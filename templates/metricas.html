@@ -1,0 +1,248 @@
+{% extends "base.html" %}
+{% block title %}Métricas{% endblock %}
+{% block content %}
+
+<h4 class="fw-bold mb-1">Métricas y KPIs</h4>
+<p class="text-muted small mb-3">Resumen de ingresos, gastos y rendimiento del portafolio</p>
+
+<!-- Selector año -->
+<div class="card p-3 mb-4">
+  <form class="row g-2 align-items-end" method="get">
+    <div class="col-md-2">
+      <label class="form-label fw-semibold mb-1">Año</label>
+      <select class="form-select form-select-sm" name="año" onchange="this.form.submit()">
+        {% for a in años %}
+        <option {% if año==a %}selected{% endif %}>{{ a }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </form>
+</div>
+
+<!-- KPIs -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3 col-6">
+    <div class="stat-card border-primary">
+      <div class="num text-primary">{{ arrendadas }}</div>
+      <div class="lbl">Propiedades arrendadas</div>
+      <div class="text-muted" style="font-size:.78rem">de {{ total_props }} totales</div>
+    </div>
+  </div>
+  <div class="col-md-3 col-6">
+    <div class="stat-card border-success">
+      <div class="num text-success">{{ pct_ocupacion }}%</div>
+      <div class="lbl">Tasa de ocupación</div>
+    </div>
+  </div>
+  <div class="col-md-3 col-6">
+    <div class="stat-card border-info">
+      <div class="num text-info" style="font-size:1.6rem">{{ total_ingresos_uf|cl_uf(1) }} UF</div>
+      <div class="lbl">Ingresos {{ año }} (UF)</div>
+      <div class="text-muted" style="font-size:.78rem">{{ total_ingresos_pesos|cl_pesos }}</div>
+    </div>
+  </div>
+  <div class="col-md-3 col-6">
+    <div class="stat-card border-warning">
+      <div class="num text-warning" style="font-size:1.6rem">{{ promedio_uf_mes|cl_uf(1) }} UF</div>
+      <div class="lbl">Promedio mensual (UF)</div>
+      <div class="text-muted" style="font-size:.78rem">Gastos año: {{ total_gastos_año|cl_pesos }}</div>
+    </div>
+  </div>
+</div>
+
+<!-- Gráfico 1: Ingresos vs Gastos por mes -->
+<div class="row g-3 mb-4">
+  <div class="col-lg-8">
+    <div class="card p-3">
+      <div class="fw-semibold mb-3">Ingresos vs Gastos Comunes — {{ año }}</div>
+      <canvas id="chartIngresosGastos" height="100"></canvas>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="card p-3">
+      <div class="fw-semibold mb-3">Gastos por ítem — {{ año }}</div>
+      {% if gastos_item %}
+      <canvas id="chartGastosItem" height="220"></canvas>
+      {% else %}
+      <p class="text-muted text-center py-4">Sin gastos registrados</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Gráfico 2: Ingresos UF por mes + Ranking -->
+<div class="row g-3 mb-4">
+  <div class="col-lg-6">
+    <div class="card p-3">
+      <div class="fw-semibold mb-3">Ingresos en UF por mes — {{ año }}</div>
+      <canvas id="chartUFMes" height="140"></canvas>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card p-3">
+      <div class="fw-semibold mb-3">Top propiedades por ingreso UF — {{ año }}</div>
+      {% if ranking %}
+      <canvas id="chartRanking" height="140"></canvas>
+      {% else %}
+      <p class="text-muted text-center py-4">Sin pagos registrados</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Tabla detalle mensual -->
+<div class="card mb-4">
+  <div class="card-body p-0">
+    <div class="fw-semibold p-3 pb-0">Detalle mensual — {{ año }}</div>
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 mt-2">
+        <thead>
+          <tr>
+            <th>Mes</th>
+            <th class="text-end">Pagos</th>
+            <th class="text-end">Ingreso UF</th>
+            <th class="text-end">Ingreso ($)</th>
+            <th class="text-end">Gasto GC ($)</th>
+            <th class="text-end">Resultado ($)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set ns = namespace(tot_uf=0, tot_pesos=0, tot_gc=0) %}
+          {% for m in range(1, 13) %}
+          {% set ing = ingresos_mes[m] %}
+          {% set gc = gastos_mes[m] %}
+          {% set resultado = ing.pesos - gc %}
+          {% set ns.tot_uf = ns.tot_uf + ing.uf %}
+          {% set ns.tot_pesos = ns.tot_pesos + ing.pesos %}
+          {% set ns.tot_gc = ns.tot_gc + gc %}
+          <tr class="{{ 'table-light' if ing.cantidad == 0 and gc == 0 else '' }}">
+            <td>{{ meses[m] }}</td>
+            <td class="text-end">{{ ing.cantidad or '—' }}</td>
+            <td class="text-end">{{ ing.uf|cl_uf(1) if ing.uf else '—' }}</td>
+            <td class="text-end">{{ ing.pesos|cl_pesos if ing.pesos else '—' }}</td>
+            <td class="text-end">{{ gc|cl_pesos if gc else '—' }}</td>
+            <td class="text-end fw-semibold {{ 'text-success' if resultado > 0 else ('text-danger' if resultado < 0 else '') }}">
+              {{ resultado|cl_pesos if (ing.pesos or gc) else '—' }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot class="table-light fw-bold">
+          <tr>
+            <td>Total</td>
+            <td></td>
+            <td class="text-end">{{ ns.tot_uf|cl_uf(1) }} UF</td>
+            <td class="text-end">{{ ns.tot_pesos|cl_pesos }}</td>
+            <td class="text-end">{{ ns.tot_gc|cl_pesos }}</td>
+            <td class="text-end {{ 'text-success' if (ns.tot_pesos - ns.tot_gc) > 0 else 'text-danger' }}">
+              {{ (ns.tot_pesos - ns.tot_gc)|cl_pesos }}
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script>
+const labelsMes     = {{ labels_mes|safe }};
+const ingPesos      = {{ data_ingresos_pesos|safe }};
+const ingUF         = {{ data_ingresos_uf|safe }};
+const gcMes         = {{ data_gastos_mes|safe }};
+const itemLabels    = {{ data_gastos_item_labels|safe }};
+const itemMontos    = {{ data_gastos_item_montos|safe }};
+const rankLabels    = {{ data_ranking_labels|safe }};
+const rankUF        = {{ data_ranking_uf|safe }};
+
+const fmtPesos = v => "$" + Math.round(v).toLocaleString("es-CL");
+const fmtUF    = v => v.toLocaleString("es-CL", {minimumFractionDigits:1, maximumFractionDigits:1}) + " UF";
+
+// 1. Ingresos vs Gastos (barras + línea resultado neto)
+const neto = ingPesos.map((v, i) => v - gcMes[i]);
+new Chart(document.getElementById("chartIngresosGastos"), {
+  type: "bar",
+  data: {
+    labels: labelsMes,
+    datasets: [
+      { label: "Ingresos ($)",    data: ingPesos, backgroundColor: "rgba(25,135,84,.75)", borderRadius: 4 },
+      { label: "Gastos GC ($)",   data: gcMes,    backgroundColor: "rgba(220,53,69,.65)", borderRadius: 4 },
+      { label: "Resultado neto",  data: neto, type: "line",
+        borderColor: "#0d6efd", backgroundColor: "rgba(13,110,253,.08)",
+        pointRadius: 5, pointHoverRadius: 7, pointBackgroundColor: "#0d6efd",
+        fill: false, tension: 0.3, borderWidth: 2, yAxisID: "y" }
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { position: "top" },
+               tooltip: { callbacks: { label: ctx => fmtPesos(ctx.parsed.y) } } },
+    scales: { y: { ticks: { callback: v => fmtPesos(v) } } }
+  }
+});
+
+// 2. Gastos por ítem (doughnut)
+{% if gastos_item %}
+const COLORS = ["#0d6efd","#198754","#dc3545","#ffc107","#0dcaf0","#6f42c1","#fd7e14","#20c997","#6c757d","#d63384"];
+new Chart(document.getElementById("chartGastosItem"), {
+  type: "doughnut",
+  data: {
+    labels: itemLabels,
+    datasets: [{ data: itemMontos, backgroundColor: COLORS.slice(0, itemLabels.length), borderWidth: 1 }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { position: "bottom", labels: { font: { size: 11 } } },
+               tooltip: { callbacks: { label: ctx => " " + fmtPesos(ctx.parsed) } } }
+  }
+});
+{% endif %}
+
+// 3. Ingresos UF por mes (barras + línea con puntos)
+new Chart(document.getElementById("chartUFMes"), {
+  type: "bar",
+  data: {
+    labels: labelsMes,
+    datasets: [
+      { label: "UF cobradas", data: ingUF,
+        backgroundColor: "rgba(13,110,253,.45)", borderRadius: 4 },
+      { label: "Tendencia", data: ingUF, type: "line",
+        borderColor: "#0d6efd", backgroundColor: "transparent",
+        pointRadius: 5, pointHoverRadius: 7, pointBackgroundColor: "#fff",
+        pointBorderColor: "#0d6efd", pointBorderWidth: 2,
+        fill: false, tension: 0.35, borderWidth: 2 }
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false },
+               tooltip: { callbacks: { label: ctx => fmtUF(ctx.parsed.y) } } },
+    scales: { y: { ticks: { callback: v => v + " UF" } } }
+  }
+});
+
+// 4. Ranking propiedades (barras horizontales)
+{% if ranking %}
+new Chart(document.getElementById("chartRanking"), {
+  type: "bar",
+  data: {
+    labels: rankLabels,
+    datasets: [{
+      label: "UF cobradas",
+      data: rankUF,
+      backgroundColor: "rgba(13,110,253,.7)",
+      borderRadius: 4
+    }]
+  },
+  options: {
+    indexAxis: "y",
+    responsive: true,
+    plugins: { legend: { display: false },
+               tooltip: { callbacks: { label: ctx => fmtUF(ctx.parsed.x) } } },
+    scales: { x: { ticks: { callback: v => v + " UF" } },
+              y: { ticks: { font: { size: 10 } } } }
+  }
+});
+{% endif %}
+</script>
+{% endblock %}

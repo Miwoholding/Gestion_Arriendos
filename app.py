@@ -754,6 +754,83 @@ def consulta_sin_pago_mes():
                            total_uf=total_uf, uf_hoy=uf_hoy, total_clp=total_clp)
 
 
+@app.route("/consultas/metricas")
+@login_required
+@permiso_required("ver_consultas")
+def consulta_metricas():
+    import json as _json_mod
+    año = _int(request.args.get("año")) or date.today().year
+    with Session(engine) as s:
+        años_p = [r[0] for r in s.query(Pago.año).distinct().filter(Pago.año != None).order_by(Pago.año.desc()).all()]
+        años_g = [r[0] for r in s.query(Gasto.año).distinct().filter(Gasto.año != None).order_by(Gasto.año.desc()).all()]
+        años = sorted(set(años_p + años_g), reverse=True) or [date.today().year]
+
+        total_props = s.query(func.count(Propiedad.id_propiedad)).scalar() or 0
+        arrendadas  = s.query(func.count(Propiedad.id_propiedad)).filter(Propiedad.estado == EstadoPropiedad.ARRENDADA).scalar() or 0
+        pct_ocupacion = round(arrendadas / total_props * 100) if total_props else 0
+
+        ingresos_mes = {m: {"uf": 0.0, "pesos": 0.0, "cantidad": 0} for m in range(1, 13)}
+        for m, uf, pesos, cnt in (s.query(Pago.mes,
+                                           func.sum(Pago.valor_arriendo_uf),
+                                           func.sum(Pago.valor_arriendo),
+                                           func.count(Pago.id_pago))
+                                    .filter(Pago.año == año, Pago.mes != None)
+                                    .group_by(Pago.mes).all()):
+            ingresos_mes[m] = {"uf": round(uf or 0, 2), "pesos": round(pesos or 0), "cantidad": cnt}
+
+        gastos_mes = {m: 0.0 for m in range(1, 13)}
+        for m, total in (s.query(Gasto.mes, func.sum(Gasto.monto))
+                          .filter(Gasto.año == año, Gasto.mes != None)
+                          .group_by(Gasto.mes).all()):
+            gastos_mes[m] = round(total or 0)
+
+        gastos_item = [{"nombre": n, "monto": round(t or 0)}
+                       for n, t in (s.query(ItemGasto.nombre, func.sum(Gasto.monto))
+                                     .join(Gasto, Gasto.id_item == ItemGasto.id_item)
+                                     .filter(Gasto.año == año)
+                                     .group_by(ItemGasto.nombre)
+                                     .order_by(func.sum(Gasto.monto).desc()).all())]
+
+        ranking = [{"direccion": d, "uf": round(uf or 0, 2), "pesos": round(p or 0)}
+                   for d, uf, p in (s.query(Propiedad.direccion_propiedad,
+                                             func.sum(Pago.valor_arriendo_uf),
+                                             func.sum(Pago.valor_arriendo))
+                                     .join(Propiedad, Pago.id_propiedad == Propiedad.id_propiedad)
+                                     .filter(Pago.año == año)
+                                     .group_by(Propiedad.id_propiedad)
+                                     .order_by(func.sum(Pago.valor_arriendo_uf).desc())
+                                     .limit(10).all())]
+
+        total_ingresos_uf    = round(sum(v["uf"]    for v in ingresos_mes.values()), 2)
+        total_ingresos_pesos = round(sum(v["pesos"] for v in ingresos_mes.values()))
+        total_gastos_año     = round(sum(gastos_mes.values()))
+        meses_con_pagos      = sum(1 for v in ingresos_mes.values() if v["cantidad"] > 0)
+        promedio_uf_mes      = round(total_ingresos_uf / meses_con_pagos, 2) if meses_con_pagos else 0
+
+    labels_mes = [MESES[m][:3] for m in range(1, 13)]
+    return render_template("metricas.html",
+                           año=año, años=años, meses=MESES,
+                           ingresos_mes=ingresos_mes,
+                           gastos_mes=gastos_mes,
+                           gastos_item=gastos_item,
+                           ranking=ranking,
+                           total_props=total_props,
+                           arrendadas=arrendadas,
+                           pct_ocupacion=pct_ocupacion,
+                           total_ingresos_uf=total_ingresos_uf,
+                           total_ingresos_pesos=total_ingresos_pesos,
+                           total_gastos_año=total_gastos_año,
+                           promedio_uf_mes=promedio_uf_mes,
+                           labels_mes=_json_mod.dumps(labels_mes),
+                           data_ingresos_pesos=_json_mod.dumps([ingresos_mes[m]["pesos"] for m in range(1,13)]),
+                           data_ingresos_uf=_json_mod.dumps([ingresos_mes[m]["uf"] for m in range(1,13)]),
+                           data_gastos_mes=_json_mod.dumps([gastos_mes[m] for m in range(1,13)]),
+                           data_gastos_item_labels=_json_mod.dumps([g["nombre"] for g in gastos_item]),
+                           data_gastos_item_montos=_json_mod.dumps([g["monto"] for g in gastos_item]),
+                           data_ranking_labels=_json_mod.dumps([r["direccion"] for r in ranking]),
+                           data_ranking_uf=_json_mod.dumps([r["uf"] for r in ranking]))
+
+
 # ── Gastos Comunes ────────────────────────────────────────────────────────────
 def _get_items(s):
     return s.query(ItemGasto).filter(ItemGasto.activo == 1).order_by(ItemGasto.nombre).all()

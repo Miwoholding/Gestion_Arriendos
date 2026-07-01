@@ -72,7 +72,7 @@
     {% endif %}
 
     {% if tiene_permiso('ver_consultas') or tiene_permiso('ver_prorrateo') %}
-    {% set consultas_active = request.endpoint in ['consulta_pagos_mes','consulta_pagos_año','consulta_propiedades_arrendatario','consulta_sin_pago_mes','prorrateo_gastos'] %}
+    {% set consultas_active = request.endpoint in ['consulta_pagos_mes','consulta_pagos_año','consulta_propiedades_arrendatario','consulta_sin_pago_mes','prorrateo_gastos','consulta_metricas'] %}
     <a data-bs-toggle="collapse" href="#nav-consultas"
        aria-expanded="{{ 'true' if consultas_active else 'false' }}"
        style="color:#4a6a8e;font-size:.72rem;font-weight:700;letter-spacing:.08em;
@@ -99,6 +99,10 @@
     <a class="nav-link {% if request.endpoint=='consulta_sin_pago_mes' %}active{% endif %}"
        href="/consultas/sin-pago-mes">
       <i class="bi bi-exclamation-circle"></i> Sin pago del mes
+    </a>
+    <a class="nav-link {% if request.endpoint=='consulta_metricas' %}active{% endif %}"
+       href="/consultas/metricas">
+      <i class="bi bi-graph-up-arrow"></i> Métricas
     </a>
     {% endif %}
     {% if tiene_permiso('ver_prorrateo') %}
