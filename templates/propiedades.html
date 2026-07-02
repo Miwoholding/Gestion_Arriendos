@@ -4,11 +4,17 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
   <h4 class="fw-bold mb-0">Propiedades</h4>
-  {% if es_admin %}
-  <a href="/propiedades/nueva" class="btn btn-primary btn-sm">
-    <i class="bi bi-plus-lg me-1"></i>Nueva propiedad
-  </a>
-  {% endif %}
+  <div class="d-flex gap-2">
+    <a href="/propiedades/exportar?q={{ q }}&estado={{ estado }}&tipo={{ tipo }}&id_propiedad={{ id_propiedad }}"
+       class="btn btn-success btn-sm">
+      <i class="bi bi-file-earmark-excel me-1"></i>Exportar Excel
+    </a>
+    {% if es_admin %}
+    <a href="/propiedades/nueva" class="btn btn-primary btn-sm">
+      <i class="bi bi-plus-lg me-1"></i>Nueva propiedad
+    </a>
+    {% endif %}
+  </div>
 </div>
 {% with messages = get_flashed_messages(with_categories=true) %}
   {% for cat, msg in messages %}

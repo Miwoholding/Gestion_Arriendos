@@ -3,7 +3,7 @@ import functools
 from datetime import date, datetime
 from pathlib import Path
 import urllib.request, json as _json
-from flask import Flask, render_template, request, redirect, url_for, flash, session, send_from_directory, abort
+from flask import Flask, render_template, request, redirect, url_for, flash, session, send_from_directory, abort, send_file
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from sqlalchemy import func, create_engine, event, text
@@ -164,6 +164,25 @@ def _get_uf_dia(fecha: date | None = None) -> float | None:
     except Exception:
         return None
 
+def _excel_response(wb, filename):
+    import io
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return send_file(buf, as_attachment=True, download_name=filename,
+                     mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+def _xl_header(ws, cols):
+    from openpyxl.styles import Font, PatternFill, Alignment
+    fill = PatternFill("solid", fgColor="1A2E4A")
+    font = Font(bold=True, color="FFFFFF", size=10)
+    for c, titulo in enumerate(cols, 1):
+        cell = ws.cell(row=1, column=c, value=titulo)
+        cell.fill = fill
+        cell.font = font
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+    ws.row_dimensions[1].height = 18
+
 def _str(v): return v.strip() if v and v.strip() else None
 def _float(v):
     try: return float(v) if v else None
@@ -275,6 +294,43 @@ def propiedades():
                            todas=todas, id_propiedad=id_propiedad,
                            estado=estado, tipo=tipo, q=q)
 
+@app.route("/propiedades/exportar")
+@login_required
+@permiso_required("ver_propiedades")
+def propiedades_exportar():
+    import openpyxl
+    id_propiedad = request.args.get("id_propiedad", "")
+    estado       = request.args.get("estado", "")
+    tipo         = request.args.get("tipo", "")
+    q            = request.args.get("q", "")
+    with Session(engine) as s:
+        q2 = (s.query(Propiedad, Arrendatario.nombre_arrendatario)
+              .outerjoin(Arrendatario, Propiedad.id_arrendatario == Arrendatario.id_arrendatario))
+        if id_propiedad: q2 = q2.filter(Propiedad.id_propiedad == int(id_propiedad))
+        if estado:       q2 = q2.filter(Propiedad.estado == estado)
+        if tipo:         q2 = q2.filter(Propiedad.tipo_propiedad == tipo)
+        if q:            q2 = q2.filter(Arrendatario.nombre_arrendatario.ilike(f"%{q}%"))
+        rows = q2.order_by(Propiedad.direccion_propiedad).all()
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Propiedades"
+    cols = ["Dirección","Tipo","Estado","Arriendo (UF)","Arrendatario",
+            "ROL SII","M² Propiedad","M² Terreno","Fecha contrato","Duración (meses)","Gastos comunes"]
+    _xl_header(ws, cols)
+    for p, nombre in rows:
+        ws.append([
+            p.direccion_propiedad, _enum_val(p.tipo_propiedad), _enum_val(p.estado),
+            p.valor_arriendo_uf, nombre or "",
+            p.rol, p.metros_propiedad, p.metros_terreno,
+            p.fecha_contrato.isoformat() if p.fecha_contrato else "",
+            p.duracion_contrato,
+            "Sí" if p.paga_gastos_comunes else "No",
+        ])
+    for col in ws.columns:
+        ws.column_dimensions[col[0].column_letter].width = max(len(str(c.value or "")) for c in col) + 3
+    return _excel_response(wb, f"propiedades_{date.today()}.xlsx")
+
+
 @app.route("/propiedades/nueva", methods=["GET","POST"])
 @admin_required
 def propiedad_nueva():
@@ -358,6 +414,33 @@ def arrendatarios():
                   for a, n in rows]
     return render_template("arrendatarios.html", arrendatarios=result, q=q)
 
+@app.route("/arrendatarios/exportar")
+@login_required
+@permiso_required("ver_arrendatarios")
+def arrendatarios_exportar():
+    import openpyxl
+    q = request.args.get("q", "")
+    with Session(engine) as s:
+        q2 = (s.query(Arrendatario, func.count(Propiedad.id_propiedad).label("n"))
+              .outerjoin(Propiedad, Arrendatario.id_arrendatario == Propiedad.id_arrendatario)
+              .group_by(Arrendatario.id_arrendatario))
+        if q:
+            q2 = q2.filter(Arrendatario.nombre_arrendatario.ilike(f"%{q}%") |
+                           Arrendatario.rut_arrendatario.ilike(f"%{q}%"))
+        rows = q2.order_by(Arrendatario.nombre_arrendatario).all()
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Arrendatarios"
+    cols = ["Nombre","RUT","Contacto","Teléfono","Mail","Actividad","N° Propiedades"]
+    _xl_header(ws, cols)
+    for a, n in rows:
+        ws.append([a.nombre_arrendatario, a.rut_arrendatario, a.contacto,
+                   a.telefono, a.mail, a.actividad_arrendatario, n])
+    for col in ws.columns:
+        ws.column_dimensions[col[0].column_letter].width = max(len(str(c.value or "")) for c in col) + 3
+    return _excel_response(wb, f"arrendatarios_{date.today()}.xlsx")
+
+
 @app.route("/arrendatarios/nuevo", methods=["GET","POST"])
 @admin_required
 def arrendatario_nuevo():
@@ -440,6 +523,46 @@ def pagos():
                            mes=mes, año=año, id_propiedad=id_propiedad,
                            propiedades=props_data,
                            total_uf=total_uf, total_pesos=total_pesos)
+
+@app.route("/pagos/exportar")
+@login_required
+@permiso_required("ver_pagos")
+def pagos_exportar():
+    import openpyxl
+    mes          = request.args.get("mes", "")
+    año          = request.args.get("año", "")
+    id_propiedad = request.args.get("id_propiedad", "")
+    with Session(engine) as s:
+        q = (s.query(Pago, Propiedad.direccion_propiedad, Arrendatario.nombre_arrendatario)
+              .outerjoin(Propiedad,    Pago.id_propiedad == Propiedad.id_propiedad)
+              .outerjoin(Arrendatario, Propiedad.id_arrendatario == Arrendatario.id_arrendatario))
+        if mes:          q = q.filter(func.strftime('%m', Pago.fecha_pago) == f"{int(mes):02d}")
+        if año:          q = q.filter(func.strftime('%Y', Pago.fecha_pago) == str(año))
+        if id_propiedad: q = q.filter(Pago.id_propiedad == int(id_propiedad))
+        rows = q.order_by(Pago.fecha_pago.desc()).all()
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Pagos"
+    cols = ["Fecha pago","Mes","Año","Propiedad","Arrendatario",
+            "UF día","Arriendo (UF)","Arriendo ($)","Gasto Común ($)",
+            "Descuento ($)","Publicidad","Secretaría","Esterilización","Otro","Factura","Forma pago"]
+    _xl_header(ws, cols)
+    for p, dir_, arr in rows:
+        ws.append([
+            p.fecha_pago.isoformat() if p.fecha_pago else "",
+            MESES.get(p.mes, p.mes), p.año,
+            dir_ or "", arr or "",
+            p.valor_uf, p.valor_arriendo_uf, p.valor_arriendo,
+            p.gasto_comun, p.descuento, p.publicidad,
+            p.secretaria, p.esterilizacion, p.otro,
+            p.factura, _enum_val(p.forma_pago),
+        ])
+    for col in ws.columns:
+        ws.column_dimensions[col[0].column_letter].width = max(len(str(c.value or "")) for c in col) + 3
+    sufijo = f"_{MESES.get(int(mes), mes)}" if mes else ""
+    sufijo += f"_{año}" if año else ""
+    return _excel_response(wb, f"pagos{sufijo}_{date.today()}.xlsx")
+
 
 @app.route("/pagos/nuevo", methods=["GET","POST"])
 @login_required
@@ -869,6 +992,38 @@ def gastos():
     return render_template("gastos.html", gastos=result, pivote=pivote,
                            meses_con_datos=meses_con_datos,
                            meses=MESES, años=años, mes=mes, año=año, total=total)
+
+@app.route("/gastos/exportar")
+@login_required
+@permiso_required("ver_gastos")
+def gastos_exportar():
+    import openpyxl
+    mes = request.args.get("mes", "")
+    año = request.args.get("año", str(date.today().year))
+    with Session(engine) as s:
+        q = (s.query(Gasto, ItemGasto.nombre)
+             .join(ItemGasto, Gasto.id_item == ItemGasto.id_item))
+        if mes: q = q.filter(Gasto.mes == int(mes))
+        if año: q = q.filter(Gasto.año == int(año))
+        rows = q.order_by(Gasto.año, Gasto.mes, ItemGasto.nombre).all()
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Gastos Comunes"
+    cols = ["Año","Mes","Ítem / Proveedor","Monto ($)","Descripción","Fecha pago","Factura"]
+    _xl_header(ws, cols)
+    for g, nombre in rows:
+        ws.append([
+            g.año, MESES.get(g.mes, g.mes), nombre,
+            g.monto, g.descripcion,
+            g.fecha_pago.isoformat() if g.fecha_pago else "",
+            g.factura,
+        ])
+    for col in ws.columns:
+        ws.column_dimensions[col[0].column_letter].width = max(len(str(c.value or "")) for c in col) + 3
+    sufijo = f"_{MESES.get(int(mes), mes)}" if mes else ""
+    sufijo += f"_{año}" if año else ""
+    return _excel_response(wb, f"gastos{sufijo}_{date.today()}.xlsx")
+
 
 @app.route("/gastos/nuevo", methods=["GET","POST"])
 @login_required
