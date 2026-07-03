@@ -155,10 +155,17 @@ app.jinja_env.filters["cl_fecha_input"] = _fmt_fecha_input
 # ── Helpers ────────────────────────────────────────────────────────────────────
 def _get_uf_dia(fecha: date | None = None) -> float | None:
     """Valor UF para una fecha dada (o hoy) desde mindicador.cl. Retorna None si falla."""
+    import ssl
+    try:
+        import certifi
+        cafile = certifi.where()
+    except ImportError:
+        cafile = None
     try:
         d = fecha or date.today()
         url = f"https://mindicador.cl/api/uf/{d.day:02d}-{d.month:02d}-{d.year}"
-        with urllib.request.urlopen(url, timeout=4) as r:
+        ctx = ssl.create_default_context(cafile=cafile)
+        with urllib.request.urlopen(url, timeout=6, context=ctx) as r:
             data = _json.loads(r.read())
         return float(data["serie"][0]["valor"])
     except Exception:
@@ -842,6 +849,16 @@ def consulta_propiedades_arrendatario():
                            grupos=grupos.values(), q=q)
 
 
+@app.route("/api/uf-hoy")
+@login_required
+def api_uf_hoy():
+    from flask import jsonify
+    uf = _get_uf_dia()
+    if uf:
+        return jsonify({"valor": uf})
+    return jsonify({"error": "no disponible"}), 503
+
+
 @app.route("/consultas/sin-pago-mes")
 @login_required
 @permiso_required("ver_consultas")
@@ -869,12 +886,9 @@ def consulta_sin_pago_mes():
                 "mail":         arr.mail,
             })
         total_uf = sum(r["valor_uf"] or 0 for r in result)
-        uf_hoy   = _get_uf_dia() if result else None
-        total_clp = round(total_uf * uf_hoy) if (uf_hoy and total_uf) else None
     return render_template("consulta_sin_pago_mes.html",
                            propiedades=result, meses=MESES, años=años,
-                           mes=mes, año=año,
-                           total_uf=total_uf, uf_hoy=uf_hoy, total_clp=total_clp)
+                           mes=mes, año=año, total_uf=total_uf)
 
 
 @app.route("/consultas/metricas")

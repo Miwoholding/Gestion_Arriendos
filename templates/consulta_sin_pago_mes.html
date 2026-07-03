@@ -37,8 +37,8 @@
       <div class="text-muted small">Total UF</div>
     </div>
     <div class="col">
-      <div class="fw-bold text-success fs-5">{{ total_clp|cl_pesos if total_clp else "—" }}</div>
-      <div class="text-muted small">Total pesos{% if uf_hoy %} (UF {{ uf_hoy|cl_uf(2) }}){% endif %}</div>
+      <div class="fw-bold text-success fs-5" id="totalClp">—</div>
+      <div class="text-muted small">Total pesos (<span id="ufHoyLabel">cargando UF…</span>)</div>
     </div>
     <div class="col">
       <div class="fw-bold text-danger fs-5">{{ propiedades|length }}</div>
@@ -46,6 +46,27 @@
     </div>
   </div>
 </div>
+
+<script>
+(function(){
+  const totalUF = {{ total_uf }};
+  const fmtUF  = v => v.toLocaleString('es-CL', {minimumFractionDigits:2, maximumFractionDigits:2});
+  const fmtClp = v => '$' + Math.round(v).toLocaleString('es-CL');
+  fetch('/api/uf-hoy')
+    .then(r => r.json())
+    .then(data => {
+      if (!data.valor) throw new Error();
+      const uf  = data.valor;
+      const clp = Math.round(totalUF * uf);
+      document.getElementById('ufHoyLabel').textContent = 'UF ' + fmtUF(uf) + ' hoy';
+      document.getElementById('totalClp').textContent   = fmtClp(clp);
+    })
+    .catch(() => {
+      document.getElementById('ufHoyLabel').textContent = 'UF no disponible';
+      document.getElementById('totalClp').textContent   = '—';
+    });
+})();
+</script>
 {% endif %}
 
 <div class="card">
