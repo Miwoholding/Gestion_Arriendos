@@ -855,7 +855,15 @@ def api_uf_hoy():
     from flask import jsonify
     uf = _get_uf_dia()
     if uf:
-        return jsonify({"valor": uf})
+        return jsonify({"valor": uf, "fuente": "mindicador"})
+    with Session(engine) as s:
+        ultima = (s.query(Pago.valor_uf, Pago.fecha_pago)
+                  .filter(Pago.valor_uf != None)
+                  .order_by(Pago.fecha_pago.desc())
+                  .first())
+    if ultima:
+        return jsonify({"valor": ultima.valor_uf, "fuente": "ultimo_pago",
+                        "fecha": ultima.fecha_pago.isoformat() if ultima.fecha_pago else None})
     return jsonify({"error": "no disponible"}), 503
 
 

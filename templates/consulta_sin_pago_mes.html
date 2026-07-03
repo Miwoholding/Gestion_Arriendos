@@ -56,9 +56,12 @@
     .then(r => r.json())
     .then(data => {
       if (!data.valor) throw new Error();
-      const uf  = data.valor;
-      const clp = Math.round(totalUF * uf);
-      document.getElementById('ufHoyLabel').textContent = 'UF ' + fmtUF(uf) + ' hoy';
+      const uf   = data.valor;
+      const clp  = Math.round(totalUF * uf);
+      const label = data.fuente === 'ultimo_pago'
+        ? 'UF ' + fmtUF(uf) + ' (último pago ' + (data.fecha || '') + ')'
+        : 'UF ' + fmtUF(uf) + ' hoy';
+      document.getElementById('ufHoyLabel').textContent = label;
       document.getElementById('totalClp').textContent   = fmtClp(clp);
     })
     .catch(() => {
