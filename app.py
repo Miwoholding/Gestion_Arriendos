@@ -153,23 +153,46 @@ app.jinja_env.filters["cl_fecha"]       = _fmt_fecha
 app.jinja_env.filters["cl_fecha_input"] = _fmt_fecha_input
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
-def _get_uf_dia(fecha: date | None = None) -> float | None:
-    """Valor UF para una fecha dada (o hoy) desde mindicador.cl. Retorna None si falla."""
-    import ssl
+_uf_cache: dict = {"valor": None, "fecha": None, "ts": 0.0}
+
+def _fetch_uf_remoto(d: date) -> float | None:
+    """Llama a mindicador.cl. Retorna None si falla."""
+    import ssl, time as _time
     try:
         import certifi
         cafile = certifi.where()
     except ImportError:
         cafile = None
-    try:
-        d = fecha or date.today()
-        url = f"https://mindicador.cl/api/uf/{d.day:02d}-{d.month:02d}-{d.year}"
-        ctx = ssl.create_default_context(cafile=cafile)
-        with urllib.request.urlopen(url, timeout=6, context=ctx) as r:
-            data = _json.loads(r.read())
-        return float(data["serie"][0]["valor"])
-    except Exception:
-        return None
+    urls = [
+        f"https://mindicador.cl/api/uf/{d.day:02d}-{d.month:02d}-{d.year}",
+        "https://mindicador.cl/api/uf",
+    ]
+    ctx = ssl.create_default_context(cafile=cafile)
+    for url in urls:
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "gestion-arriendos/1.0"})
+            with urllib.request.urlopen(req, timeout=5, context=ctx) as r:
+                data = _json.loads(r.read())
+            return float(data["serie"][0]["valor"])
+        except Exception:
+            continue
+    return None
+
+def _get_uf_dia(fecha: date | None = None) -> float | None:
+    """UF del día con caché en memoria de 4 horas. Retorna None si no hay datos."""
+    import time as _time
+    d = fecha or date.today()
+    ahora = _time.time()
+    # Usar caché si es del mismo día y tiene menos de 4 horas
+    if (_uf_cache["valor"] and _uf_cache["fecha"] == d
+            and ahora - _uf_cache["ts"] < 4 * 3600):
+        return _uf_cache["valor"]
+    valor = _fetch_uf_remoto(d)
+    if valor:
+        _uf_cache["valor"] = valor
+        _uf_cache["fecha"] = d
+        _uf_cache["ts"]    = ahora
+    return _uf_cache["valor"] if _uf_cache["fecha"] == d else valor
 
 def _excel_response(wb, filename):
     import io
@@ -853,9 +876,14 @@ def consulta_propiedades_arrendatario():
 @login_required
 def api_uf_hoy():
     from flask import jsonify
+    import time as _time
+    hoy = date.today()
     uf = _get_uf_dia()
     if uf:
-        return jsonify({"valor": uf, "fuente": "mindicador"})
+        cached = _uf_cache["fecha"] == hoy and _time.time() - _uf_cache["ts"] < 4 * 3600
+        return jsonify({"valor": uf, "fuente": "cache" if cached else "mindicador",
+                        "fecha": hoy.isoformat()})
+    # Fallback: último valor_uf registrado en pagos
     with Session(engine) as s:
         ultima = (s.query(Pago.valor_uf, Pago.fecha_pago)
                   .filter(Pago.valor_uf != None)
