@@ -768,7 +768,7 @@ def eliminar_contrato(id):
 @login_required
 @permiso_required("ver_consultas")
 def consulta_pagos_mes():
-    """ConsultaPagosMes / ConsultaPagosMes2 — pagos del mes+año seleccionado."""
+    """ConsultaPagosMes / ConsultaPagosMes2 — pagos del mes de arriendo (mes/año pagado) seleccionado."""
     mes = _int(request.args.get("mes")) or date.today().month
     año = _int(request.args.get("año")) or date.today().year
     with Session(engine) as s:
@@ -778,14 +778,14 @@ def consulta_pagos_mes():
             .outerjoin(Propiedad,    Pago.id_propiedad == Propiedad.id_propiedad)
             .outerjoin(Arrendatario, Propiedad.id_arrendatario == Arrendatario.id_arrendatario)
             .filter(
-                func.strftime('%m', Pago.fecha_pago) == f"{mes:02d}",
-                func.strftime('%Y', Pago.fecha_pago) == str(año)
+                Pago.mes == mes,
+                Pago.año == año
             )
             .order_by(Propiedad.direccion_propiedad)
             .all()
         )
-        años = sorted({int(r[0]) for r in s.query(func.strftime('%Y', Pago.fecha_pago))
-                       .filter(Pago.fecha_pago != None).distinct().all()}, reverse=True)
+        años = sorted({int(r[0]) for r in s.query(Pago.año)
+                       .filter(Pago.año != None).distinct().all()}, reverse=True)
         result = []
         for p, dir_, arr in rows:
             d = {c.key: getattr(p, c.key) for c in p.__mapper__.columns}
