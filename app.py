@@ -836,6 +836,41 @@ def consulta_pagos_año():
                            gran_total_pesos=gran_total_pesos)
 
 
+@app.route("/consultas/ingresos-mes")
+@login_required
+@permiso_required("ver_consultas")
+def consulta_ingresos_mes():
+    """Detalle de ingresos reales de un mes: pagos por fecha_pago, sin importar el mes de arriendo que se paga."""
+    mes = _int(request.args.get("mes")) or date.today().month
+    año = _int(request.args.get("año")) or date.today().year
+    with Session(engine) as s:
+        rows = (
+            s.query(Pago, Propiedad.direccion_propiedad,
+                    Arrendatario.nombre_arrendatario)
+            .outerjoin(Propiedad,    Pago.id_propiedad == Propiedad.id_propiedad)
+            .outerjoin(Arrendatario, Propiedad.id_arrendatario == Arrendatario.id_arrendatario)
+            .filter(
+                func.strftime('%m', Pago.fecha_pago) == f"{mes:02d}",
+                func.strftime('%Y', Pago.fecha_pago) == str(año)
+            )
+            .order_by(Pago.fecha_pago)
+            .all()
+        )
+        result = []
+        for p, dir_, arr in rows:
+            d = {c.key: getattr(p, c.key) for c in p.__mapper__.columns}
+            d["direccion"]    = dir_
+            d["arrendatario"] = arr
+            d["forma_pago"]   = _enum_val(p.forma_pago)
+            result.append(d)
+        total_uf    = sum(r["valor_arriendo_uf"] or 0 for r in result)
+        total_pesos = sum(r["valor_arriendo"]    or 0 for r in result)
+    return render_template("consulta_ingresos_mes.html",
+                           pagos=result, meses=MESES,
+                           mes=mes, año=año,
+                           total_uf=total_uf, total_pesos=total_pesos)
+
+
 @app.route("/consultas/propiedades-arrendatario")
 @login_required
 @permiso_required("ver_consultas")
