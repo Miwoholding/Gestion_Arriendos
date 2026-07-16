@@ -230,6 +230,19 @@ def _date(v):
 def _enum_val(col):
     return col.value if col else None
 
+def _total_pago(p):
+    """Total a pagar de un Pago: arriendo + gasto común + publicidad + secretaría + esterilización + otro - descuento."""
+    return ((p.valor_arriendo or 0) + (p.gasto_comun or 0) + (p.publicidad or 0)
+            + (p.secretaria or 0) + (p.esterilizacion or 0) + (p.otro or 0)
+            - (p.descuento or 0))
+
+def _total_pago_expr():
+    """Igual que _total_pago pero como expresión SQL, para usar en func.sum()."""
+    return (func.coalesce(Pago.valor_arriendo, 0) + func.coalesce(Pago.gasto_comun, 0)
+            + func.coalesce(Pago.publicidad, 0) + func.coalesce(Pago.secretaria, 0)
+            + func.coalesce(Pago.esterilizacion, 0) + func.coalesce(Pago.otro, 0)
+            - func.coalesce(Pago.descuento, 0))
+
 # ── Autenticación ─────────────────────────────────────────────────────────────
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -546,9 +559,10 @@ def pagos():
             d["direccion"]    = dir_
             d["arrendatario"] = arr
             d["forma_pago"]   = _enum_val(p.forma_pago)
+            d["total_pago"]   = _total_pago(p)
             result.append(d)
         total_uf    = sum(r["valor_arriendo_uf"] or 0 for r in result)
-        total_pesos = sum(r["valor_arriendo"]    or 0 for r in result)
+        total_pesos = sum(r["total_pago"]        or 0 for r in result)
     return render_template("pagos.html", pagos=result, meses=MESES, años=años,
                            mes=mes, año=año, id_propiedad=id_propiedad,
                            propiedades=props_data,
@@ -575,7 +589,8 @@ def pagos_exportar():
     ws.title = "Pagos"
     cols = ["Fecha pago","Mes","Año","Propiedad","Arrendatario",
             "UF día","Arriendo (UF)","Arriendo ($)","Gasto Común ($)",
-            "Descuento ($)","Publicidad","Secretaría","Esterilización","Otro","Factura","Forma pago"]
+            "Descuento ($)","Publicidad","Secretaría","Esterilización","Otro",
+            "Total a pagar ($)","Factura","Forma pago"]
     _xl_header(ws, cols)
     for p, dir_, arr in rows:
         ws.append([
@@ -585,6 +600,7 @@ def pagos_exportar():
             p.valor_uf, p.valor_arriendo_uf, p.valor_arriendo,
             p.gasto_comun, p.descuento, p.publicidad,
             p.secretaria, p.esterilizacion, p.otro,
+            round(_total_pago(p)),
             p.factura, _enum_val(p.forma_pago),
         ])
     for col in ws.columns:
@@ -792,9 +808,10 @@ def consulta_pagos_mes():
             d["direccion"]    = dir_
             d["arrendatario"] = arr
             d["forma_pago"]   = _enum_val(p.forma_pago)
+            d["total_pago"]   = _total_pago(p)
             result.append(d)
         total_uf    = sum(r["valor_arriendo_uf"] or 0 for r in result)
-        total_pesos = sum(r["valor_arriendo"]    or 0 for r in result)
+        total_pesos = sum(r["total_pago"]        or 0 for r in result)
     return render_template("consulta_pagos_mes.html",
                            pagos=result, meses=MESES, años=años,
                            mes=mes, año=año,
@@ -815,7 +832,7 @@ def consulta_pagos_año():
                 _mes_fp.label("mes"),
                 func.count(Pago.id_pago).label("cantidad"),
                 func.sum(Pago.valor_arriendo_uf).label("total_uf"),
-                func.sum(Pago.valor_arriendo).label("total_pesos"),
+                func.sum(_total_pago_expr()).label("total_pesos"),
             )
             .filter(func.strftime('%Y', Pago.fecha_pago) == str(año),
                     Pago.fecha_pago != None)
@@ -862,9 +879,10 @@ def consulta_ingresos_mes():
             d["direccion"]    = dir_
             d["arrendatario"] = arr
             d["forma_pago"]   = _enum_val(p.forma_pago)
+            d["total_pago"]   = _total_pago(p)
             result.append(d)
         total_uf    = sum(r["valor_arriendo_uf"] or 0 for r in result)
-        total_pesos = sum(r["valor_arriendo"]    or 0 for r in result)
+        total_pesos = sum(r["total_pago"]        or 0 for r in result)
     return render_template("consulta_ingresos_mes.html",
                            pagos=result, meses=MESES,
                            mes=mes, año=año,
@@ -980,7 +998,7 @@ def consulta_metricas():
         ingresos_mes = {m: {"uf": 0.0, "pesos": 0.0, "cantidad": 0} for m in range(1, 13)}
         for m, uf, pesos, cnt in (s.query(Pago.mes,
                                            func.sum(Pago.valor_arriendo_uf),
-                                           func.sum(Pago.valor_arriendo),
+                                           func.sum(_total_pago_expr()),
                                            func.count(Pago.id_pago))
                                     .filter(Pago.año == año, Pago.mes != None)
                                     .group_by(Pago.mes).all()):
@@ -1002,7 +1020,7 @@ def consulta_metricas():
         ranking = [{"direccion": d, "uf": round(uf or 0, 2), "pesos": round(p or 0)}
                    for d, uf, p in (s.query(Propiedad.direccion_propiedad,
                                              func.sum(Pago.valor_arriendo_uf),
-                                             func.sum(Pago.valor_arriendo))
+                                             func.sum(_total_pago_expr()))
                                      .join(Propiedad, Pago.id_propiedad == Propiedad.id_propiedad)
                                      .filter(Pago.año == año)
                                      .group_by(Propiedad.id_propiedad)

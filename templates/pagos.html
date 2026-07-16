@@ -62,7 +62,7 @@
     </div>
     <div class="col">
       <div class="fw-bold text-success">{{ total_pesos|cl_pesos }}</div>
-      <div class="text-muted small">Total pesos</div>
+      <div class="text-muted small">Total a pagar</div>
     </div>
     <div class="col">
       <div class="fw-bold">{{ pagos|length }}</div>
@@ -76,7 +76,7 @@
   <div class="table-responsive">
     <table class="table table-hover mb-0">
       <thead>
-        <tr><th>#</th><th>Fecha</th><th>Propiedad</th><th>Arrendatario</th><th class="text-end">UF</th><th class="text-end">Valor UF</th><th class="text-end">Pesos</th><th>Forma pago</th><th>Factura</th><th></th></tr>
+        <tr><th>#</th><th>Fecha</th><th>Propiedad</th><th>Arrendatario</th><th class="text-end">UF</th><th class="text-end">Valor UF</th><th class="text-end">Total a pagar</th><th>Forma pago</th><th>Factura</th><th></th></tr>
       </thead>
       <tbody>
         {% for p in pagos %}
@@ -87,7 +87,7 @@
           <td class="text-truncate" style="max-width:130px" title="{{ p.arrendatario }}">{{ p.arrendatario or "—" }}</td>
           <td class="text-end">{{ p.valor_arriendo_uf|cl_uf }}</td>
           <td class="text-end">{{ p.valor_uf|cl_pesos }}</td>
-          <td class="text-end">{{ p.valor_arriendo|cl_pesos }}</td>
+          <td class="text-end fw-semibold">{{ p.total_pago|cl_pesos }}</td>
           <td>
             {% if p.forma_pago %}
               <span class="badge bg-light text-dark">{{ p.forma_pago }}</span>
