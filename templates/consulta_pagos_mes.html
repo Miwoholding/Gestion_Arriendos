@@ -60,7 +60,6 @@
           <th class="text-end">UF</th>
           <th class="text-end">Valor UF</th>
           <th class="text-end">Total a pagar</th>
-          <th>Forma pago</th>
           <th>Factura</th>
           <th></th>
         </tr>
@@ -74,11 +73,6 @@
           <td class="text-end">{{ p.valor_arriendo_uf|cl_uf }}</td>
           <td class="text-end">{{ p.valor_uf|cl_pesos }}</td>
           <td class="text-end fw-semibold">{{ p.total_pago|cl_pesos }}</td>
-          <td>
-            {% if p.forma_pago %}
-              <span class="badge bg-light text-dark">{{ p.forma_pago }}</span>
-            {% else %}—{% endif %}
-          </td>
           <td>{{ p.factura or "—" }}</td>
           <td>
             <a href="/pagos/{{ p.id_pago }}/editar" class="btn btn-sm btn-outline-secondary py-0" title="Ver detalle">
@@ -87,7 +81,7 @@
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="9" class="text-center text-muted py-4">Sin pagos para {{ meses[mes] }} {{ año }}</td></tr>
+        <tr><td colspan="8" class="text-center text-muted py-4">Sin pagos para {{ meses[mes] }} {{ año }}</td></tr>
         {% endfor %}
       </tbody>
       {% if pagos %}
@@ -97,7 +91,7 @@
           <td class="text-end">{{ total_uf|cl_uf(1) }} UF</td>
           <td></td>
           <td class="text-end">{{ total_pesos|cl_pesos }}</td>
-          <td colspan="3"></td>
+          <td colspan="2"></td>
         </tr>
       </tfoot>
       {% endif %}

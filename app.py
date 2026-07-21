@@ -797,7 +797,7 @@ def consulta_pagos_mes():
                 Pago.mes == mes,
                 Pago.año == año
             )
-            .order_by(Propiedad.direccion_propiedad)
+            .order_by(Pago.fecha_pago)
             .all()
         )
         años = sorted({int(r[0]) for r in s.query(Pago.año)
