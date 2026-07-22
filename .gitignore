@@ -3,6 +3,7 @@
 *.db-shm
 *.db-wal
 *.db.bak
+backups/
 
 # Variables de entorno (crear manualmente en el servidor)
 .env
