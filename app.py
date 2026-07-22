@@ -392,6 +392,7 @@ def propiedad_nueva():
                 duracion_contrato    = _int(request.form.get("duracion_contrato")),
                 id_arrendatario      = _int(request.form.get("id_arrendatario")),
                 paga_gastos_comunes  = 1 if request.form.get("paga_gastos_comunes") else 0,
+                dia_vencimiento      = _int(request.form.get("dia_vencimiento")),
             )
             s.add(p); s.commit()
             flash("Propiedad creada correctamente.", "success")
@@ -418,6 +419,7 @@ def propiedad_editar(id):
             p.duracion_contrato    = _int(request.form.get("duracion_contrato"))
             p.id_arrendatario      = _int(request.form.get("id_arrendatario"))
             p.paga_gastos_comunes  = 1 if request.form.get("paga_gastos_comunes") else 0
+            p.dia_vencimiento      = _int(request.form.get("dia_vencimiento"))
             s.commit()
             flash("Propiedad actualizada.", "success")
             return redirect(url_for("propiedades"))
@@ -978,6 +980,19 @@ def consulta_sin_pago_mes():
     return render_template("consulta_sin_pago_mes.html",
                            propiedades=result, meses=MESES, años=años,
                            mes=mes, año=año, total_uf=total_uf)
+
+
+@app.route("/recordatorios/enviar-ahora", methods=["POST"])
+@admin_required
+def recordatorios_enviar_ahora():
+    """Dispara manualmente el envío de recordatorios de pago (para pruebas)."""
+    import recordatorios
+    try:
+        recordatorios.main()
+        flash("Recordatorios procesados. Revise logs/recordatorios.log para el detalle.", "success")
+    except Exception as e:
+        flash(f"Error al enviar recordatorios: {e}", "danger")
+    return redirect(url_for("consulta_sin_pago_mes"))
 
 
 @app.route("/consultas/metricas")

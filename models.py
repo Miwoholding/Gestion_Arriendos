@@ -79,6 +79,7 @@ class Propiedad(Base):
     duracion_contrato = Column(Integer)  # en meses
     copia_contrato = Column(Text)        # ruta o nombre del archivo
     paga_gastos_comunes = Column(Integer, default=0)  # 1=sí, 0=no
+    dia_vencimiento = Column(Integer)    # día del mes (1-31) en que vence el pago
     id_arrendatario = Column(Integer, ForeignKey("arrendatarios.id_arrendatario"))
 
     arrendatario = relationship("Arrendatario", back_populates="propiedades")
@@ -179,6 +180,36 @@ def propiedades_sin_pago_mes(session: Session, mes: int, año: int):
         # Solo propiedades cuyo contrato ya estaba vigente en el mes consultado
         .filter(func.strftime('%Y%m', Propiedad.fecha_contrato) <= periodo_consulta)
         .filter(~pago_existe)
+        .order_by(Propiedad.direccion_propiedad)
+        .all()
+    )
+
+
+def propiedades_pendientes_recordatorio(session: Session, hoy: date | None = None):
+    """Propiedades arrendadas cuyo día de vencimiento del mes actual ya llegó
+    (o pasó) y que aún no tienen registrado el pago del mes/año en curso.
+    El recordatorio deja de enviarse en cuanto se registra el pago."""
+    hoy = hoy or date.today()
+    mes, año = hoy.month, hoy.year
+    periodo_consulta = f"{año}{mes:02d}"
+
+    pago_existe = (
+        exists()
+        .where(Pago.id_propiedad == Propiedad.id_propiedad)
+        .where(Pago.mes == mes)
+        .where(Pago.año == año)
+    )
+    return (
+        session.query(Propiedad, Arrendatario)
+        .join(Arrendatario, Propiedad.id_arrendatario == Arrendatario.id_arrendatario)
+        .filter(Propiedad.estado == EstadoPropiedad.ARRENDADA)
+        .filter(Propiedad.fecha_contrato != None)
+        .filter(Propiedad.dia_vencimiento != None)
+        .filter(Propiedad.dia_vencimiento <= hoy.day)
+        .filter(func.strftime('%Y%m', Propiedad.fecha_contrato) <= periodo_consulta)
+        .filter(~pago_existe)
+        .filter(Arrendatario.mail != None)
+        .filter(Arrendatario.mail != "")
         .order_by(Propiedad.direccion_propiedad)
         .all()
     )

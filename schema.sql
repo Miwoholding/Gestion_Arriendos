@@ -27,6 +27,7 @@ CREATE TABLE propiedades (
     fecha_contrato      DATE,
     duracion_contrato   INTEGER,          -- meses
     copia_contrato      TEXT,             -- ruta / nombre del archivo
+    dia_vencimiento     INTEGER,          -- día del mes (1-31) en que vence el pago
     id_arrendatario     INTEGER REFERENCES arrendatarios(id_arrendatario)
 );
 

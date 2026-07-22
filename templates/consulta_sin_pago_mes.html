@@ -2,7 +2,17 @@
 {% block title %}Sin pago del mes{% endblock %}
 {% block content %}
 
-<h4 class="fw-bold mb-4">Propiedades sin pago de arriendo</h4>
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <h4 class="fw-bold mb-0">Propiedades sin pago de arriendo</h4>
+  {% if session.get('rol') == 'admin' %}
+  <form method="post" action="{{ url_for('recordatorios_enviar_ahora') }}"
+        onsubmit="return confirm('¿Enviar ahora los recordatorios de pago pendientes por mail?')">
+    <button type="submit" class="btn btn-sm btn-outline-primary">
+      <i class="bi bi-envelope me-1"></i>Enviar recordatorios ahora
+    </button>
+  </form>
+  {% endif %}
+</div>
 
 <!-- Selector -->
 <div class="card p-3 mb-3">

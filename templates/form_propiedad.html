@@ -83,6 +83,14 @@
       </div>
 
       <div class="col-md-4">
+        <label class="form-label fw-semibold">Día de vencimiento del pago</label>
+        <input type="number" min="1" max="31" name="dia_vencimiento" class="form-control"
+               placeholder="ej: 5"
+               value="{{ propiedad.dia_vencimiento or '' if propiedad else '' }}">
+        <div class="text-muted small">Día del mes desde el cual se enviará el recordatorio diario por mail hasta registrar el pago.</div>
+      </div>
+
+      <div class="col-md-4">
         <label class="form-label fw-semibold">Arrendatario</label>
         <select name="id_arrendatario" class="form-select">
           <option value="">— Sin arrendatario —</option>

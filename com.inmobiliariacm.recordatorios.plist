@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.inmobiliariacm.recordatorios</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/rodrigomiranda/Library/Mobile Documents/com~apple~CloudDocs/INMOBILIARIA CM/gestion_arriendos_python/start_recordatorios.sh</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/rodrigomiranda/Library/Mobile Documents/com~apple~CloudDocs/INMOBILIARIA CM/gestion_arriendos_python</string>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>9</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/Users/rodrigomiranda/Library/Mobile Documents/com~apple~CloudDocs/INMOBILIARIA CM/gestion_arriendos_python/logs/recordatorios_launchd.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/rodrigomiranda/Library/Mobile Documents/com~apple~CloudDocs/INMOBILIARIA CM/gestion_arriendos_python/logs/recordatorios_launchd.log</string>
+</dict>
+</plist>
