@@ -28,7 +28,7 @@ if _env_file.exists():
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
-from models import propiedades_pendientes_recordatorio
+from models import Base, RecordatorioEnviado, propiedades_pendientes_recordatorio
 
 MESES = ["", "enero","febrero","marzo","abril","mayo","junio","julio",
           "agosto","septiembre","octubre","noviembre","diciembre"]
@@ -76,12 +76,13 @@ def _get_uf_hoy():
         return None
 
 
-def construir_mensaje(nombre_arrendatario, direccion, mes, año, valor_uf, dia_venc, valor_pesos):
+def construir_mensaje(nombre_arrendatario, direccion, mes, año, valor_uf, dia_venc, valor_pesos, uf_dia=None):
     mes_nombre = MESES[mes]
     asunto = f"Recordatorio de pago de arriendo – {direccion} – {mes_nombre} {año}"
 
     monto_uf_str = f"{valor_uf:.2f} UF" if valor_uf else "UF pactada en el contrato"
-    monto_pesos_linea = f"\nEquivalente aproximado hoy: {_fmt_pesos(valor_pesos)}\n" if valor_pesos else "\n"
+    uf_dia_linea = f"Valor UF del día: {_fmt_pesos(uf_dia)}\n" if uf_dia else ""
+    monto_pesos_linea = f"Equivalente aproximado hoy: {_fmt_pesos(valor_pesos)}\n" if valor_pesos else ""
 
     cuerpo = f"""Estimado(a) {nombre_arrendatario},
 
@@ -92,7 +93,8 @@ Le recordamos que el pago del arriendo de la propiedad ubicada en:
 correspondiente a {mes_nombre} {año}, vence el día {dia_venc} de cada mes y aún no
 registramos su pago.
 
-Monto pactado: {monto_uf_str}{monto_pesos_linea}
+Monto pactado: {monto_uf_str}
+{uf_dia_linea}{monto_pesos_linea}
 Si ya realizó el pago, por favor descuide este mensaje e infórmenos para
 regularizar el registro. De lo contrario, le agradecemos regularizarlo a la
 brevedad.
@@ -125,6 +127,7 @@ def main():
         return 1
 
     engine = create_engine(f"sqlite:///{DB_PATH}", connect_args={"check_same_thread": False})
+    Base.metadata.create_all(engine, tables=[RecordatorioEnviado.__table__])
     hoy = date.today()
     uf_hoy = _get_uf_hoy()
     enviados, fallidos = 0, 0
@@ -136,21 +139,37 @@ def main():
             return 0
 
         for prop, arr in pendientes:
+            valor_pesos = (prop.valor_arriendo_uf * uf_hoy) if (prop.valor_arriendo_uf and uf_hoy) else None
             asunto, cuerpo = construir_mensaje(
                 nombre_arrendatario=arr.nombre_arrendatario or "arrendatario",
                 direccion=prop.direccion_propiedad,
                 mes=hoy.month, año=hoy.year,
                 valor_uf=prop.valor_arriendo_uf,
                 dia_venc=prop.dia_vencimiento,
-                valor_pesos=(prop.valor_arriendo_uf * uf_hoy) if (prop.valor_arriendo_uf and uf_hoy) else None,
+                valor_pesos=valor_pesos,
+                uf_dia=uf_hoy,
+            )
+            registro = RecordatorioEnviado(
+                mes=hoy.month, año=hoy.year,
+                id_propiedad=prop.id_propiedad,
+                direccion=prop.direccion_propiedad,
+                id_arrendatario=arr.id_arrendatario,
+                mail=arr.mail,
+                valor_uf=uf_hoy,
+                valor_pesos=valor_pesos,
             )
             try:
                 enviar_mail(arr.mail, asunto, cuerpo)
                 enviados += 1
+                registro.exito = 1
                 _log(f"Enviado a {arr.mail} — {prop.direccion_propiedad}")
             except Exception as e:
                 fallidos += 1
+                registro.exito = 0
+                registro.error = str(e)[:300]
                 _log(f"ERROR enviando a {arr.mail} — {prop.direccion_propiedad}: {e}")
+            s.add(registro)
+        s.commit()
 
     _log(f"Resumen: {enviados} enviados, {fallidos} fallidos.")
     return 0
@@ -172,6 +191,7 @@ def test(destinatario: str):
         valor_uf=valor_uf,
         dia_venc=5,
         valor_pesos=(valor_uf * uf_hoy) if uf_hoy else None,
+        uf_dia=uf_hoy,
     )
     asunto = "[PRUEBA] " + asunto
     try:

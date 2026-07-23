@@ -1,8 +1,8 @@
-from datetime import date
+from datetime import date, datetime
 from enum import Enum as PyEnum
 
 from sqlalchemy import (
-    Column, Integer, String, Float, Date, ForeignKey,
+    Column, Integer, String, Float, Date, DateTime, ForeignKey,
     Enum, Text, create_engine, exists, func
 )
 from sqlalchemy.orm import DeclarativeBase, relationship, Session
@@ -138,6 +138,28 @@ class Gasto(Base):
     item = relationship("ItemGasto", back_populates="gastos")
 
 
+class RecordatorioEnviado(Base):
+    """Registro de cada mail de recordatorio de pago enviado (o intentado),
+    para poder mostrar un resumen en el dashboard."""
+    __tablename__ = "recordatorios_enviados"
+
+    id_recordatorio = Column(Integer, primary_key=True, autoincrement=True)
+    enviado_en = Column(DateTime, default=datetime.now)
+    mes = Column(Integer)
+    año = Column(Integer)
+    id_propiedad = Column(Integer, ForeignKey("propiedades.id_propiedad", ondelete="SET NULL"), nullable=True)
+    direccion = Column(String(200))       # snapshot, por si la propiedad cambia/se elimina
+    id_arrendatario = Column(Integer, ForeignKey("arrendatarios.id_arrendatario", ondelete="SET NULL"), nullable=True)
+    mail = Column(String(100))
+    valor_uf = Column(Float)              # valor UF del día del envío
+    valor_pesos = Column(Float)           # arriendo pactado convertido a pesos con esa UF
+    exito = Column(Integer, default=1)    # 1=enviado correctamente, 0=falló
+    error = Column(String(300))
+
+    propiedad = relationship("Propiedad")
+    arrendatario = relationship("Arrendatario")
+
+
 # ---------------------------------------------------------------------------
 # Helpers de consulta (equivalentes a las queries de Access)
 # ---------------------------------------------------------------------------
@@ -213,6 +235,34 @@ def propiedades_pendientes_recordatorio(session: Session, hoy: date | None = Non
         .order_by(Propiedad.direccion_propiedad)
         .all()
     )
+
+
+def resumen_recordatorios(session: Session, limite: int = 10):
+    """Resumen para el dashboard: totales del último envío y detalle reciente."""
+    ultima_fecha = session.query(func.max(RecordatorioEnviado.enviado_en)).scalar()
+    totales_ultimo_envio = {"exitosos": 0, "fallidos": 0}
+    if ultima_fecha:
+        ultimo_dia = ultima_fecha.date()
+        conteo = (
+            session.query(RecordatorioEnviado.exito, func.count(RecordatorioEnviado.id_recordatorio))
+            .filter(func.date(RecordatorioEnviado.enviado_en) == ultimo_dia.isoformat())
+            .group_by(RecordatorioEnviado.exito)
+            .all()
+        )
+        for exito, cantidad in conteo:
+            totales_ultimo_envio["exitosos" if exito else "fallidos"] = cantidad
+
+    recientes = (
+        session.query(RecordatorioEnviado)
+        .order_by(RecordatorioEnviado.enviado_en.desc())
+        .limit(limite)
+        .all()
+    )
+    return {
+        "ultima_fecha": ultima_fecha,
+        "totales_ultimo_envio": totales_ultimo_envio,
+        "recientes": recientes,
+    }
 
 
 def consulta_propiedades_por_arrendatario(session: Session, id_arrendatario: int):

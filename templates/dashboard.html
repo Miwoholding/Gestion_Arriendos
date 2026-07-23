@@ -70,4 +70,48 @@
     </div>
   </div>
 </div>
+
+<div class="row g-3 mt-1">
+  <!-- Recordatorios de cobranza por mail -->
+  <div class="col-12">
+    <div class="card p-3">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="fw-bold mb-0">Recordatorios de pago enviados por mail</h6>
+        {% if recordatorios.ultima_fecha %}
+        <span class="text-muted small">Último envío: {{ recordatorios.ultima_fecha|cl_fecha }}
+          — {{ recordatorios.totales_ultimo_envio.exitosos }} exitosos,
+          {{ recordatorios.totales_ultimo_envio.fallidos }} fallidos</span>
+        {% endif %}
+      </div>
+      <table class="table table-sm table-hover">
+        <thead>
+          <tr>
+            <th>Fecha</th><th>Propiedad</th><th>Mail</th>
+            <th class="text-end">Valor UF</th><th class="text-end">Monto ($)</th><th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in recordatorios.recientes %}
+          <tr>
+            <td>{{ r.enviado_en|cl_fecha }}</td>
+            <td class="text-truncate" style="max-width:200px" title="{{ r.direccion }}">{{ r.direccion or "—" }}</td>
+            <td class="text-truncate" style="max-width:180px" title="{{ r.mail }}">{{ r.mail or "—" }}</td>
+            <td class="text-end">{{ r.valor_uf|cl_uf }}</td>
+            <td class="text-end">{{ r.valor_pesos|cl_pesos }}</td>
+            <td>
+              {% if r.exito %}
+              <span class="badge bg-success">Enviado</span>
+              {% else %}
+              <span class="badge bg-danger" title="{{ r.error }}">Falló</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="text-center text-muted">Aún no se han enviado recordatorios.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
 {% endblock %}

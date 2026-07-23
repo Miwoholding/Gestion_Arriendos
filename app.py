@@ -8,7 +8,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from sqlalchemy import func, create_engine, event, text
 from sqlalchemy.orm import Session
-from models import Base, Arrendatario, Propiedad, Pago, Gasto, ItemGasto, Usuario, RolUsuario, EstadoPropiedad, TipoPropiedad, FormaPago
+from models import Base, Arrendatario, Propiedad, Pago, Gasto, ItemGasto, Usuario, RolUsuario, EstadoPropiedad, TipoPropiedad, FormaPago, RecordatorioEnviado, resumen_recordatorios
 
 # Cargar .env si existe
 _env_file = Path(__file__).parent / ".env"
@@ -37,6 +37,8 @@ def _set_sqlite_pragmas(dbapi_conn, _):
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "inmobiliaria_cm_s3cr3t_2024!")
+
+Base.metadata.create_all(engine, tables=[RecordatorioEnviado.__table__])
 
 # ── Decoradores de acceso ──────────────────────────────────────────────────────
 def login_required(f):
@@ -302,8 +304,10 @@ def dashboard():
             {"fecha_pago": p.fecha_pago, "direccion": d, "valor_arriendo_uf": p.valor_arriendo_uf}
             for p, d in ultimos
         ]
+        recordatorios = resumen_recordatorios(s)
     return render_template("dashboard.html", stats=stats, pagos_mes=pagos_mes,
-                           ultimos_pagos=ultimos_pagos, año_actual=año_actual, meses=MESES)
+                           ultimos_pagos=ultimos_pagos, año_actual=año_actual, meses=MESES,
+                           recordatorios=recordatorios)
 
 # ── Propiedades ───────────────────────────────────────────────────────────────
 @app.route("/propiedades")
