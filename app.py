@@ -156,20 +156,38 @@ app.jinja_env.filters["cl_fecha_input"] = _fmt_fecha_input
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 _uf_cache: dict = {"valor": None, "fecha": None, "ts": 0.0}
+CMF_API_KEY = os.environ.get("CMF_API_KEY")
+
+def _parse_num_cl(s: str) -> float:
+    """'40.844,79' -> 40844.79"""
+    return float(s.replace(".", "").replace(",", "."))
 
 def _fetch_uf_remoto(d: date) -> float | None:
-    """Llama a mindicador.cl. Retorna None si falla."""
-    import ssl, time as _time
+    """UF de una fecha. Primero la API oficial de la CMF (requiere
+    CMF_API_KEY); si falla o no hay key, cae a mindicador.cl."""
+    import ssl
     try:
         import certifi
         cafile = certifi.where()
     except ImportError:
         cafile = None
+    ctx = ssl.create_default_context(cafile=cafile)
+
+    if CMF_API_KEY:
+        try:
+            url = (f"https://api.cmfchile.cl/api-sbifv3/recursos_api/uf/"
+                   f"{d.year}/{d.month}/dias/{d.day}?apikey={CMF_API_KEY}&formato=json")
+            req = urllib.request.Request(url, headers={"User-Agent": "gestion-arriendos/1.0"})
+            with urllib.request.urlopen(req, timeout=5, context=ctx) as r:
+                data = _json.loads(r.read())
+            return _parse_num_cl(data["UFs"][0]["Valor"])
+        except Exception:
+            pass
+
     urls = [
         f"https://mindicador.cl/api/uf/{d.day:02d}-{d.month:02d}-{d.year}",
         "https://mindicador.cl/api/uf",
     ]
-    ctx = ssl.create_default_context(cafile=cafile)
     for url in urls:
         try:
             req = urllib.request.Request(url, headers={"User-Agent": "gestion-arriendos/1.0"})

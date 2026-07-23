@@ -60,11 +60,33 @@ def _fmt_pesos(v):
     return f"${v:,.0f}".replace(",", ".")
 
 
+CMF_API_KEY = os.environ.get("CMF_API_KEY")
+
+
+def _parse_num_cl(s: str) -> float:
+    """'40.844,79' -> 40844.79"""
+    return float(s.replace(".", "").replace(",", "."))
+
+
 def _get_uf_hoy():
-    """Consulta mindicador.cl para el valor de la UF de hoy. None si falla."""
+    """Valor de la UF de hoy. Primero la API oficial de la CMF (requiere
+    CMF_API_KEY); si falla o no hay key, cae a mindicador.cl."""
     import urllib.request, json, certifi
+    ctx = ssl.create_default_context(cafile=certifi.where())
+
+    if CMF_API_KEY:
+        try:
+            req = urllib.request.Request(
+                f"https://api.cmfchile.cl/api-sbifv3/recursos_api/uf?apikey={CMF_API_KEY}&formato=json",
+                headers={"User-Agent": "gestion-arriendos/1.0"},
+            )
+            with urllib.request.urlopen(req, timeout=5, context=ctx) as r:
+                data = json.loads(r.read())
+            return _parse_num_cl(data["UFs"][0]["Valor"])
+        except Exception:
+            pass
+
     try:
-        ctx = ssl.create_default_context(cafile=certifi.where())
         req = urllib.request.Request(
             "https://mindicador.cl/api/uf",
             headers={"User-Agent": "gestion-arriendos/1.0"},
