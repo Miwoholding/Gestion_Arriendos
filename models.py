@@ -237,10 +237,11 @@ def propiedades_pendientes_recordatorio(session: Session, hoy: date | None = Non
     )
 
 
-def resumen_recordatorios(session: Session, limite: int = 10):
-    """Resumen para el dashboard: totales del último envío y detalle reciente."""
+def resumen_recordatorios(session: Session):
+    """Resumen para el dashboard: totales y detalle del último día en que se enviaron recordatorios."""
     ultima_fecha = session.query(func.max(RecordatorioEnviado.enviado_en)).scalar()
     totales_ultimo_envio = {"exitosos": 0, "fallidos": 0}
+    recientes = []
     if ultima_fecha:
         ultimo_dia = ultima_fecha.date()
         conteo = (
@@ -252,12 +253,12 @@ def resumen_recordatorios(session: Session, limite: int = 10):
         for exito, cantidad in conteo:
             totales_ultimo_envio["exitosos" if exito else "fallidos"] = cantidad
 
-    recientes = (
-        session.query(RecordatorioEnviado)
-        .order_by(RecordatorioEnviado.enviado_en.desc())
-        .limit(limite)
-        .all()
-    )
+        recientes = (
+            session.query(RecordatorioEnviado)
+            .filter(func.date(RecordatorioEnviado.enviado_en) == ultimo_dia.isoformat())
+            .order_by(RecordatorioEnviado.enviado_en.desc())
+            .all()
+        )
     return {
         "ultima_fecha": ultima_fecha,
         "totales_ultimo_envio": totales_ultimo_envio,
