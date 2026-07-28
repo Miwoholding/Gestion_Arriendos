@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Recordatorios enviados{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="fw-bold mb-0">Recordatorios de pago enviados por mail</h4>
+  <span class="text-muted small">{{ total }} registro{{ "s" if total != 1 else "" }} en total</span>
+</div>
+
+<div class="card p-3">
+  <table class="table table-sm table-hover">
+    <thead>
+      <tr>
+        <th>Fecha</th><th>Propiedad</th><th>Mail</th>
+        <th class="text-end">Valor UF</th><th class="text-end">Monto ($)</th><th>Estado</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in registros %}
+      <tr>
+        <td>{{ r.enviado_en|cl_fecha }}</td>
+        <td class="text-truncate" style="max-width:200px" title="{{ r.direccion }}">{{ r.direccion or "—" }}</td>
+        <td class="text-truncate" style="max-width:180px" title="{{ r.mail }}">{{ r.mail or "—" }}</td>
+        <td class="text-end">{{ r.valor_uf|cl_uf }}</td>
+        <td class="text-end">{{ r.valor_pesos|cl_pesos }}</td>
+        <td>
+          {% if r.exito %}
+          <span class="badge bg-success">Enviado</span>
+          {% else %}
+          <span class="badge bg-danger" title="{{ r.error }}">Falló</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="text-center text-muted">Aún no se han enviado recordatorios.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if total_paginas > 1 %}
+  <nav aria-label="Paginación de recordatorios">
+    <ul class="pagination pagination-sm justify-content-center mb-0">
+      <li class="page-item {{ 'disabled' if page <= 1 else '' }}">
+        <a class="page-link" href="{{ url_for('recordatorios_enviados', page=page-1) }}">Anterior</a>
+      </li>
+      {% for p in range(1, total_paginas + 1) %}
+      <li class="page-item {{ 'active' if p == page else '' }}">
+        <a class="page-link" href="{{ url_for('recordatorios_enviados', page=p) }}">{{ p }}</a>
+      </li>
+      {% endfor %}
+      <li class="page-item {{ 'disabled' if page >= total_paginas else '' }}">
+        <a class="page-link" href="{{ url_for('recordatorios_enviados', page=page+1) }}">Siguiente</a>
+      </li>
+    </ul>
+  </nav>
+  {% endif %}
+</div>
+{% endblock %}

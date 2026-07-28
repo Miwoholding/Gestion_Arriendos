@@ -322,10 +322,29 @@ def dashboard():
             {"fecha_pago": p.fecha_pago, "direccion": d, "valor_arriendo_uf": p.valor_arriendo_uf}
             for p, d in ultimos
         ]
-        recordatorios = resumen_recordatorios(s)
+        recordatorios = resumen_recordatorios(s, limite=25)
     return render_template("dashboard.html", stats=stats, pagos_mes=pagos_mes,
                            ultimos_pagos=ultimos_pagos, año_actual=año_actual, meses=MESES,
                            recordatorios=recordatorios)
+
+# ── Recordatorios enviados (historial completo, paginado) ──────────────────────
+@app.route("/recordatorios")
+@login_required
+def recordatorios_enviados():
+    page = max(request.args.get("page", 1, type=int), 1)
+    por_pagina = 25
+    with Session(engine) as s:
+        total = s.query(RecordatorioEnviado).count()
+        registros = (
+            s.query(RecordatorioEnviado)
+            .order_by(RecordatorioEnviado.enviado_en.desc())
+            .offset((page - 1) * por_pagina)
+            .limit(por_pagina)
+            .all()
+        )
+    total_paginas = max((total + por_pagina - 1) // por_pagina, 1)
+    return render_template("recordatorios.html", registros=registros, page=page,
+                           total_paginas=total_paginas, total=total)
 
 # ── Propiedades ───────────────────────────────────────────────────────────────
 @app.route("/propiedades")

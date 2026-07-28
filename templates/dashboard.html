@@ -77,11 +77,14 @@
     <div class="card p-3">
       <div class="d-flex justify-content-between align-items-center mb-3">
         <h6 class="fw-bold mb-0">Recordatorios de pago enviados por mail</h6>
-        {% if recordatorios.ultima_fecha %}
-        <span class="text-muted small">Último envío: {{ recordatorios.ultima_fecha|cl_fecha }}
-          — {{ recordatorios.totales_ultimo_envio.exitosos }} exitosos,
-          {{ recordatorios.totales_ultimo_envio.fallidos }} fallidos</span>
-        {% endif %}
+        <div class="d-flex align-items-center gap-3">
+          {% if recordatorios.ultima_fecha %}
+          <span class="text-muted small">Último envío: {{ recordatorios.ultima_fecha|cl_fecha }}
+            — {{ recordatorios.totales_ultimo_envio.exitosos }} exitosos,
+            {{ recordatorios.totales_ultimo_envio.fallidos }} fallidos</span>
+          {% endif %}
+          <a href="{{ url_for('recordatorios_enviados') }}" class="small">Ver todos</a>
+        </div>
       </div>
       <table class="table table-sm table-hover">
         <thead>
