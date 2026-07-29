@@ -323,9 +323,10 @@ def dashboard():
             for p, d in ultimos
         ]
         recordatorios = resumen_recordatorios(s)
+    uf_hoy = _get_uf_dia()
     return render_template("dashboard.html", stats=stats, pagos_mes=pagos_mes,
                            ultimos_pagos=ultimos_pagos, año_actual=año_actual, meses=MESES,
-                           recordatorios=recordatorios)
+                           recordatorios=recordatorios, uf_hoy=uf_hoy)
 
 # ── Recordatorios enviados (historial completo, paginado) ──────────────────────
 @app.route("/recordatorios")

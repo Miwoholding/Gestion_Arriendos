@@ -5,28 +5,34 @@
 <h4 class="fw-bold mb-4">Dashboard</h4>
 
 <div class="row g-3 mb-4">
-  <div class="col-md-3">
+  <div class="col-md-3 col-lg">
     <div class="stat-card" style="border-color:#0d6efd">
       <div class="num text-primary">{{ stats.propiedades }}</div>
       <div class="lbl">Propiedades</div>
     </div>
   </div>
-  <div class="col-md-3">
+  <div class="col-md-3 col-lg">
     <div class="stat-card" style="border-color:#198754">
       <div class="num text-success">{{ stats.arrendadas }}</div>
       <div class="lbl">Arrendadas</div>
     </div>
   </div>
-  <div class="col-md-3">
+  <div class="col-md-3 col-lg">
     <div class="stat-card" style="border-color:#fd7e14">
       <div class="num text-warning">{{ stats.arrendatarios }}</div>
       <div class="lbl">Arrendatarios</div>
     </div>
   </div>
-  <div class="col-md-3">
+  <div class="col-md-3 col-lg">
     <div class="stat-card" style="border-color:#6f42c1">
       <div class="num text-purple" style="color:#6f42c1">{{ stats.pagos_año }}</div>
       <div class="lbl">Pagos este año</div>
+    </div>
+  </div>
+  <div class="col-md-3 col-lg">
+    <div class="stat-card" style="border-color:#20c997">
+      <div class="num" style="color:#20c997">{{ uf_hoy|cl_pesos if uf_hoy else "-" }}</div>
+      <div class="lbl">Valor UF hoy</div>
     </div>
   </div>
 </div>
