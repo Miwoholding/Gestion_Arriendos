@@ -162,9 +162,10 @@ def _parse_num_cl(s: str) -> float:
     """'40.844,79' -> 40844.79"""
     return float(s.replace(".", "").replace(",", "."))
 
-def _fetch_uf_remoto(d: date) -> float | None:
+def _fetch_uf_remoto(d: date, permitir_ultimo: bool = True) -> float | None:
     """UF de una fecha. Primero la API oficial de la CMF (requiere
-    CMF_API_KEY); si falla o no hay key, cae a mindicador.cl."""
+    CMF_API_KEY); si falla o no hay key, cae a mindicador.cl. Con
+    permitir_ultimo, como último recurso usa el valor más reciente."""
     import ssl
     try:
         import certifi
@@ -184,10 +185,9 @@ def _fetch_uf_remoto(d: date) -> float | None:
         except Exception:
             pass
 
-    urls = [
-        f"https://mindicador.cl/api/uf/{d.day:02d}-{d.month:02d}-{d.year}",
-        "https://mindicador.cl/api/uf",
-    ]
+    urls = [f"https://mindicador.cl/api/uf/{d.day:02d}-{d.month:02d}-{d.year}"]
+    if permitir_ultimo:
+        urls.append("https://mindicador.cl/api/uf")
     for url in urls:
         try:
             req = urllib.request.Request(url, headers={"User-Agent": "gestion-arriendos/1.0"})
@@ -990,6 +990,22 @@ def api_uf_hoy():
         return jsonify({"valor": ultima.valor_uf, "fuente": "ultimo_pago",
                         "fecha": ultima.fecha_pago.isoformat() if ultima.fecha_pago else None})
     return jsonify({"error": "no disponible"}), 503
+
+
+@app.route("/api/uf")
+@login_required
+def api_uf_fecha():
+    """UF de una fecha (?fecha=YYYY-MM-DD), consultada desde el servidor
+    (CMF y, como respaldo, mindicador.cl)."""
+    from flask import jsonify
+    try:
+        d = date.fromisoformat(request.args.get("fecha", ""))
+    except ValueError:
+        return jsonify({"error": "fecha inválida"}), 400
+    uf = _get_uf_dia() if d == date.today() else _fetch_uf_remoto(d, permitir_ultimo=False)
+    if not uf:
+        return jsonify({"error": "no disponible"}), 503
+    return jsonify({"valor": uf, "fecha": d.isoformat()})
 
 
 @app.route("/consultas/sin-pago-mes")

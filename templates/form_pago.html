@@ -560,7 +560,7 @@ function autoSlashFecha(el) {
   el.value = v;
 }
 
-// ── Cargar UF según fecha de pago (API mindicador.cl) ────────────────────────
+// ── Cargar UF según fecha de pago (vía servidor: CMF / mindicador.cl) ────────
 const inputFecha  = document.querySelector('[name="fecha_pago"]');
 const spanValorUF = document.getElementById('uf-valor');
 const spanFechaUF = document.getElementById('uf-fecha');
@@ -574,23 +574,26 @@ function isoACL(iso) {
 }
 
 function cargarUF(fechaISO) {
-  // fechaISO: "YYYY-MM-DD"  →  API espera "DD-MM-YYYY"
+  // fechaISO: "YYYY-MM-DD"
   if (!fechaISO) return;
-  const fechaApi = isoACL(fechaISO);
 
   spanValorUF.textContent = 'cargando…';
   spanFechaUF.textContent = '';
   banner.style.display = '';
 
-  fetch(`https://mindicador.cl/api/uf/${fechaApi}`)
-    .then(r => r.json())
+  fetch(`/api/uf?fecha=${fechaISO.slice(0, 10)}`)
+    .then(r => {
+      if (r.status === 503) return {};
+      if (!r.ok) throw new Error();
+      return r.json();
+    })
     .then(d => {
-      if (!d.serie || !d.serie.length) {
+      if (!d.valor) {
         spanValorUF.textContent = 'No disponible para esa fecha';
         return;
       }
-      const val        = d.serie[0].valor;
-      const fechaMuest = isoACL(d.serie[0].fecha.slice(0, 10));
+      const val        = d.valor;
+      const fechaMuest = isoACL(d.fecha);
       spanValorUF.textContent = '$ ' + fmtCL(val, 2);
       spanFechaUF.textContent = '(' + fechaMuest + ')';
 
