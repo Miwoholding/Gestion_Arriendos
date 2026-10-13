@@ -26,7 +26,7 @@
   <form class="row g-2 align-items-end" method="get">
     <div class="col-md-3">
       <label class="form-label fw-semibold mb-1">Mes</label>
-      <select class="form-select form-select-sm" name="mes">
+      <select class="form-select form-select-sm" name="mes" onchange="this.form.submit()">
         {% for n, nombre in meses.items() %}
         <option value="{{ n }}" {% if mes==n %}selected{% endif %}>{{ nombre }}</option>
         {% endfor %}
@@ -34,7 +34,7 @@
     </div>
     <div class="col-md-2">
       <label class="form-label fw-semibold mb-1">Año</label>
-      <select class="form-select form-select-sm" name="año">
+      <select class="form-select form-select-sm" name="año" onchange="this.form.submit()">
         {% for a in años %}
         <option {% if año==a %}selected{% endif %}>{{ a }}</option>
         {% endfor %}
