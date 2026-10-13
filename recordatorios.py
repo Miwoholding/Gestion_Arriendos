@@ -28,7 +28,7 @@ if _env_file.exists():
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
-from models import Base, RecordatorioEnviado, propiedades_pendientes_recordatorio
+from models import Base, RecordatorioEnviado, propiedades_pendientes_recordatorio, propiedades_sin_pago_mes
 
 MESES = ["", "enero","febrero","marzo","abril","mayo","junio","julio",
           "agosto","septiembre","octubre","noviembre","diciembre"]
@@ -105,6 +105,7 @@ def construir_mensaje(nombre_arrendatario, direccion, mes, año, valor_uf, dia_v
     monto_uf_str = f"{valor_uf:.2f} UF" if valor_uf else "UF pactada en el contrato"
     uf_dia_linea = f"Valor UF del día: {_fmt_pesos(uf_dia)}\n" if uf_dia else ""
     monto_pesos_linea = f"Equivalente aproximado hoy: {_fmt_pesos(valor_pesos)}\n" if valor_pesos else ""
+    vence_str = f"vence el día {dia_venc} de cada mes y " if dia_venc else ""
 
     cuerpo = f"""Estimado(a) {nombre_arrendatario},
 
@@ -112,8 +113,7 @@ Le recordamos que el pago del arriendo de la propiedad ubicada en:
 
   {direccion}
 
-correspondiente a {mes_nombre} {año}, vence el día {dia_venc} de cada mes y aún no
-registramos su pago.
+correspondiente a {mes_nombre} {año}, {vence_str}aún no registramos su pago.
 
 Monto pactado: {monto_uf_str}
 {uf_dia_linea}{monto_pesos_linea}
@@ -143,58 +143,83 @@ def enviar_mail(destinatario, asunto, cuerpo):
         server.send_message(msg)
 
 
+def _enviar(s, pendientes, mes, año, uf_hoy):
+    """Envía el recordatorio de `mes`/`año` a cada (propiedad, arrendatario)
+    de `pendientes` y registra cada intento. Devuelve (enviados, fallidos)."""
+    enviados, fallidos = 0, 0
+    for prop, arr in pendientes:
+        valor_pesos = (prop.valor_arriendo_uf * uf_hoy) if (prop.valor_arriendo_uf and uf_hoy) else None
+        asunto, cuerpo = construir_mensaje(
+            nombre_arrendatario=arr.nombre_arrendatario or "arrendatario",
+            direccion=prop.direccion_propiedad,
+            mes=mes, año=año,
+            valor_uf=prop.valor_arriendo_uf,
+            dia_venc=prop.dia_vencimiento,
+            valor_pesos=valor_pesos,
+            uf_dia=uf_hoy,
+        )
+        registro = RecordatorioEnviado(
+            mes=mes, año=año,
+            id_propiedad=prop.id_propiedad,
+            direccion=prop.direccion_propiedad,
+            id_arrendatario=arr.id_arrendatario,
+            mail=arr.mail,
+            valor_uf=uf_hoy,
+            valor_pesos=valor_pesos,
+        )
+        try:
+            enviar_mail(arr.mail, asunto, cuerpo)
+            enviados += 1
+            registro.exito = 1
+            _log(f"Enviado a {arr.mail} — {prop.direccion_propiedad} ({MESES[mes]} {año})")
+        except Exception as e:
+            fallidos += 1
+            registro.exito = 0
+            registro.error = str(e)[:300]
+            _log(f"ERROR enviando a {arr.mail} — {prop.direccion_propiedad}: {e}")
+        s.add(registro)
+    s.commit()
+    return enviados, fallidos
+
+
+def _engine():
+    engine = create_engine(f"sqlite:///{DB_PATH}", connect_args={"check_same_thread": False})
+    Base.metadata.create_all(engine, tables=[RecordatorioEnviado.__table__])
+    return engine
+
+
 def main():
     if not SMTP_USER or not SMTP_PASS:
         _log("ERROR: faltan SMTP_USER / SMTP_PASS en .env. No se enviaron recordatorios.")
         return 1
 
-    engine = create_engine(f"sqlite:///{DB_PATH}", connect_args={"check_same_thread": False})
-    Base.metadata.create_all(engine, tables=[RecordatorioEnviado.__table__])
     hoy = date.today()
-    uf_hoy = _get_uf_hoy()
-    enviados, fallidos = 0, 0
-
-    with Session(engine) as s:
+    with Session(_engine()) as s:
         pendientes = propiedades_pendientes_recordatorio(s, hoy)
         if not pendientes:
             _log("Sin propiedades pendientes de recordatorio hoy.")
             return 0
-
-        for prop, arr in pendientes:
-            valor_pesos = (prop.valor_arriendo_uf * uf_hoy) if (prop.valor_arriendo_uf and uf_hoy) else None
-            asunto, cuerpo = construir_mensaje(
-                nombre_arrendatario=arr.nombre_arrendatario or "arrendatario",
-                direccion=prop.direccion_propiedad,
-                mes=hoy.month, año=hoy.year,
-                valor_uf=prop.valor_arriendo_uf,
-                dia_venc=prop.dia_vencimiento,
-                valor_pesos=valor_pesos,
-                uf_dia=uf_hoy,
-            )
-            registro = RecordatorioEnviado(
-                mes=hoy.month, año=hoy.year,
-                id_propiedad=prop.id_propiedad,
-                direccion=prop.direccion_propiedad,
-                id_arrendatario=arr.id_arrendatario,
-                mail=arr.mail,
-                valor_uf=uf_hoy,
-                valor_pesos=valor_pesos,
-            )
-            try:
-                enviar_mail(arr.mail, asunto, cuerpo)
-                enviados += 1
-                registro.exito = 1
-                _log(f"Enviado a {arr.mail} — {prop.direccion_propiedad}")
-            except Exception as e:
-                fallidos += 1
-                registro.exito = 0
-                registro.error = str(e)[:300]
-                _log(f"ERROR enviando a {arr.mail} — {prop.direccion_propiedad}: {e}")
-            s.add(registro)
-        s.commit()
+        enviados, fallidos = _enviar(s, pendientes, hoy.month, hoy.year, _get_uf_hoy())
 
     _log(f"Resumen: {enviados} enviados, {fallidos} fallidos.")
     return 0
+
+
+def enviar_mes(mes: int, año: int):
+    """Envío manual: recordatorio a todas las propiedades sin pago del
+    `mes`/`año` indicado (las mismas de la consulta "Sin pago del mes").
+    Devuelve (enviados, fallidos, sin_mail)."""
+    if not SMTP_USER or not SMTP_PASS:
+        raise RuntimeError("faltan SMTP_USER / SMTP_PASS en .env")
+
+    with Session(_engine()) as s:
+        rows = propiedades_sin_pago_mes(s, mes, año)
+        pendientes = [(p, a) for p, a in rows if a.mail and a.mail.strip()]
+        sin_mail = len(rows) - len(pendientes)
+        enviados, fallidos = _enviar(s, pendientes, mes, año, _get_uf_hoy()) if pendientes else (0, 0)
+
+    _log(f"Envío manual {MESES[mes]} {año}: {enviados} enviados, {fallidos} fallidos, {sin_mail} sin mail.")
+    return enviados, fallidos, sin_mail
 
 
 def test(destinatario: str):

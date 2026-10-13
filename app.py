@@ -1027,14 +1027,22 @@ def consulta_sin_pago_mes():
 @app.route("/recordatorios/enviar-ahora", methods=["POST"])
 @admin_required
 def recordatorios_enviar_ahora():
-    """Dispara manualmente el envío de recordatorios de pago (para pruebas)."""
+    """Envía manualmente los recordatorios de pago del mes/año seleccionado
+    en la consulta "Sin pago del mes"."""
     import recordatorios
+    mes = _int(request.form.get("mes")) or date.today().month
+    año = _int(request.form.get("año")) or date.today().year
     try:
-        recordatorios.main()
-        flash("Recordatorios procesados. Revise logs/recordatorios.log para el detalle.", "success")
+        enviados, fallidos, sin_mail = recordatorios.enviar_mes(mes, año)
+        msg = f"Recordatorios de {MESES[mes]} {año}: {enviados} enviados"
+        if fallidos:
+            msg += f", {fallidos} fallidos (ver logs/recordatorios.log)"
+        if sin_mail:
+            msg += f", {sin_mail} sin mail registrado"
+        flash(msg + ".", "warning" if fallidos else "success")
     except Exception as e:
         flash(f"Error al enviar recordatorios: {e}", "danger")
-    return redirect(url_for("consulta_sin_pago_mes"))
+    return redirect(url_for("consulta_sin_pago_mes", mes=mes, año=año))
 
 
 @app.route("/consultas/metricas")
